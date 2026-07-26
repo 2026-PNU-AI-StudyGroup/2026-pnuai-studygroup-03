@@ -43,4 +43,17 @@ public record SignupRequest(
     private static boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
+
+    @Override
+    public String toString() {
+        return "SignupRequest[" +
+                "role=" + role +
+                ", name=" + name +
+                ", email=" + email +
+                ", password=[REDACTED]" +
+                ", nickname=" + nickname +
+                ", libraryName=" + libraryName +
+                ", department=" + department +
+                ']';
+    }
 }

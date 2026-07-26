@@ -104,4 +104,21 @@ class AuthServiceTest {
         assertThat(userCaptor.getValue().getLibraryName()).isNull();
         assertThat(userCaptor.getValue().getDepartment()).isNull();
     }
+
+    @Test
+    void signupRequestDoesNotExposePasswordInLogs() {
+        SignupRequest request = new SignupRequest(
+                UserRole.USER,
+                "김독자",
+                "reader@wakebook.kr",
+                "Password!123",
+                null,
+                null,
+                null
+        );
+
+        assertThat(request.toString())
+                .contains("password=[REDACTED]")
+                .doesNotContain("Password!123");
+    }
 }
