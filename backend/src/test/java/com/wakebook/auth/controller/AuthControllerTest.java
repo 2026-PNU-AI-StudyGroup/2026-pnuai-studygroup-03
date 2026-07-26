@@ -3,24 +3,31 @@ package com.wakebook.auth.controller;
 import com.wakebook.auth.dto.LoginRequest;
 import com.wakebook.auth.dto.LoginResponse;
 import com.wakebook.auth.dto.LoginUserResponse;
+import com.wakebook.auth.dto.MyInfoResponse;
 import com.wakebook.auth.dto.SignupRequest;
 import com.wakebook.auth.dto.SignupResponse;
 import com.wakebook.auth.service.AuthService;
 import com.wakebook.common.exception.DuplicateEmailException;
 import com.wakebook.common.exception.GlobalExceptionHandler;
 import com.wakebook.common.exception.InvalidCredentialsException;
+import com.wakebook.common.response.ApiResponse;
 import com.wakebook.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -200,5 +207,31 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data").doesNotExist());
 
         verifyNoInteractions(authService);
+    }
+
+    @Test
+    void getMyInfoUsesTheAuthenticatedJwtSubject() {
+        MyInfoResponse myInfo = new MyInfoResponse(
+                12L,
+                "김도서",
+                "책지기",
+                UserRole.LIBRARIAN,
+                "부산대학교 도서관"
+        );
+        when(authService.getMyInfo("12")).thenReturn(myInfo);
+        Jwt jwt = Jwt.withTokenValue("access-token")
+                .header("alg", "HS256")
+                .subject("12")
+                .build();
+
+        ResponseEntity<ApiResponse<MyInfoResponse>> response =
+                new AuthController(authService).getMyInfo(jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isTrue();
+        assertThat(response.getBody().message()).isEqualTo("내 정보를 조회했습니다.");
+        assertThat(response.getBody().data()).isEqualTo(myInfo);
+        verify(authService).getMyInfo("12");
     }
 }

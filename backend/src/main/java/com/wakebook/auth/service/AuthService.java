@@ -3,9 +3,11 @@ package com.wakebook.auth.service;
 import com.wakebook.auth.dto.LoginRequest;
 import com.wakebook.auth.dto.LoginResponse;
 import com.wakebook.auth.dto.LoginUserResponse;
+import com.wakebook.auth.dto.MyInfoResponse;
 import com.wakebook.auth.dto.SignupRequest;
 import com.wakebook.auth.dto.SignupResponse;
 import com.wakebook.auth.token.JwtTokenProvider;
+import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.common.exception.DuplicateEmailException;
 import com.wakebook.common.exception.InvalidCredentialsException;
 import com.wakebook.user.domain.User;
@@ -82,6 +84,32 @@ public class AuthService {
                 user.getLibraryName()
         );
         return new LoginResponse(accessToken, loginUser);
+    }
+
+    public MyInfoResponse getMyInfo(String authenticatedUserId) {
+        Long userId = parseUserId(authenticatedUserId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(AuthenticationRequiredException::new);
+
+        return new MyInfoResponse(
+                user.getId(),
+                user.getName(),
+                user.getNickname(),
+                user.getRole(),
+                user.getLibraryName()
+        );
+    }
+
+    private static Long parseUserId(String authenticatedUserId) {
+        try {
+            long userId = Long.parseLong(authenticatedUserId);
+            if (userId <= 0) {
+                throw new AuthenticationRequiredException();
+            }
+            return userId;
+        } catch (NumberFormatException exception) {
+            throw new AuthenticationRequiredException();
+        }
     }
 
     private static String nullableStrip(String value) {
