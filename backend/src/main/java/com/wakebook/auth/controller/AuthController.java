@@ -1,5 +1,7 @@
 package com.wakebook.auth.controller;
 
+import com.wakebook.auth.dto.LoginRequest;
+import com.wakebook.auth.dto.LoginResponse;
 import com.wakebook.auth.dto.SignupRequest;
 import com.wakebook.auth.dto.SignupResponse;
 import com.wakebook.auth.service.AuthService;
@@ -29,5 +31,13 @@ public class AuthController {
         SignupResponse response = authService.signup(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("회원가입이 완료되었습니다.", response));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request
+    ) {
+        LoginResponse response = authService.login(request);
+        return ResponseEntity.ok(ApiResponse.success("로그인되었습니다.", response));
     }
 }

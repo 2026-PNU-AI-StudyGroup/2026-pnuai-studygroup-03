@@ -19,18 +19,24 @@ public class GlobalExceptionHandler {
                 .orElse("요청값을 확인해 주세요.");
 
         return ResponseEntity.badRequest()
-                .body(ErrorResponse.of("COMMON_001", message));
+                .body(ErrorResponse.of("VALIDATION_001", message));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableRequest() {
         return ResponseEntity.badRequest()
-                .body(ErrorResponse.of("COMMON_001", "요청값을 확인해 주세요."));
+                .body(ErrorResponse.of("VALIDATION_001", "요청값을 확인해 주세요."));
     }
 
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateEmail(DuplicateEmailException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of("AUTH_002", exception.getMessage()));
+                .body(ErrorResponse.of("AUTH_003", exception.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of("AUTH_001", exception.getMessage()));
     }
 }
