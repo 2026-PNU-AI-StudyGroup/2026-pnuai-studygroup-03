@@ -2,9 +2,11 @@ package com.wakebook.auth.service;
 
 import com.wakebook.auth.dto.LoginRequest;
 import com.wakebook.auth.dto.LoginResponse;
+import com.wakebook.auth.dto.MyInfoResponse;
 import com.wakebook.auth.dto.SignupRequest;
 import com.wakebook.auth.dto.SignupResponse;
 import com.wakebook.auth.token.JwtTokenProvider;
+import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.common.exception.DuplicateEmailException;
 import com.wakebook.common.exception.InvalidCredentialsException;
 import com.wakebook.user.domain.User;
@@ -201,6 +203,42 @@ class AuthServiceTest {
         assertThat(request.toString())
                 .contains("password=[REDACTED]")
                 .doesNotContain("Password!123");
+    }
+
+    @Test
+    void getMyInfoReturnsOnlyTheApiSpecificationFields() {
+        AuthService authService = createAuthService();
+        User user = librarianUser();
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+
+        MyInfoResponse response = authService.getMyInfo("12");
+
+        assertThat(response.id()).isEqualTo(12L);
+        assertThat(response.name()).isEqualTo("김도서");
+        assertThat(response.nickname()).isEqualTo("책지기");
+        assertThat(response.role()).isEqualTo(UserRole.LIBRARIAN);
+        assertThat(response.libraryName()).isEqualTo("부산대학교 도서관");
+    }
+
+    @Test
+    void getMyInfoRejectsAnInvalidJwtSubjectBeforeDatabaseAccess() {
+        AuthService authService = createAuthService();
+
+        assertThatThrownBy(() -> authService.getMyInfo("not-a-user-id"))
+                .isInstanceOf(AuthenticationRequiredException.class)
+                .hasMessage("로그인이 필요합니다.");
+
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
+    void getMyInfoRejectsAUserThatNoLongerExists() {
+        AuthService authService = createAuthService();
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.getMyInfo("999"))
+                .isInstanceOf(AuthenticationRequiredException.class)
+                .hasMessage("로그인이 필요합니다.");
     }
 
     private AuthService createAuthService() {
