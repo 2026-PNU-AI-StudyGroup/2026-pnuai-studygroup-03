@@ -1,539 +1,344 @@
-# API Specification
+# WakeBook API 명세서
 
-## Base URL
+> Base URL: `http://localhost:8080/api`  
+> 형식: `application/json; charset=UTF-8`  
+> 인증: 로그인 후 `Authorization: Bearer {accessToken}` 헤더를 사용합니다.
 
-```
-http://localhost:8080/api
-```
+## 1. 공통 규칙
 
----
-
-# 1. Auth API
-
-## 1.1 회원가입
-
-### POST
-
-```
-POST /auth/signup
-```
-
-### Request
+### 응답 형식
 
 ```json
-{
-  "role": "USER",
-  "name": "홍길동",
-  "email": "test@test.com",
-  "password": "1234",
-  "nickname": "길동"
-}
+{ "success": true, "message": "요청이 완료되었습니다.", "data": {} }
 ```
 
-### Librarian Request
+```json
+{ "success": false, "code": "AUTH_001", "message": "로그인이 필요합니다.", "data": null }
+```
+
+| 역할 | 코드 | 권한 |
+|---|---|---|
+| 일반 사용자 | `USER` | 도서 탐색, 추천, 책장 관리 |
+| 사서 | `LIBRARIAN` | 일반 사용자 기능 및 큐레이션 관리 |
+
+## 2. 인증 API
+
+### 2.1 회원가입
+
+`POST /auth/signup`
+
+일반 사용자 또는 사서 계정을 생성합니다. 사서는 `libraryName`, `department`를 필수 입력합니다.
 
 ```json
 {
   "role": "LIBRARIAN",
-  "name": "홍길동",
-  "email": "test@test.com",
-  "password": "1234",
+  "name": "김도서",
+  "email": "librarian@wakebook.kr",
+  "password": "Password!123",
+  "nickname": "책지기",
   "libraryName": "부산대학교 도서관",
   "department": "자료운영팀"
 }
 ```
 
-### Response
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|:---:|---|
+| role | String | O | `USER` 또는 `LIBRARIAN` |
+| name | String | O | 이름 |
+| email | String | O | 로그인 이메일, 중복 불가 |
+| password | String | O | 비밀번호 |
+| nickname | String | X | 사용자 별칭 |
+| libraryName | String | 사서 | 소속 도서관 |
+| department | String | 사서 | 담당 부서 |
+
+**201 Created**
+
+```json
+{ "success": true, "message": "회원가입이 완료되었습니다.", "data": { "id": 12, "role": "LIBRARIAN", "name": "김도서" } }
+```
+
+### 2.2 로그인
+
+`POST /auth/login`
+
+```json
+{ "email": "librarian@wakebook.kr", "password": "Password!123" }
+```
 
 ```json
 {
-  "status": 201,
-  "message": "회원가입 성공"
-}
-```
-
----
-
-## 1.2 로그인
-
-### POST
-
-```
-POST /auth/login
-```
-
-### Request
-
-```json
-{
-  "email":"test@test.com",
-  "password":"1234"
-}
-```
-
-### Response
-
-```json
-{
-  "accessToken":"JWT_TOKEN",
-  "role":"USER"
-}
-```
-
----
-
-## 1.3 내 정보 조회
-
-### GET
-
-```
-GET /auth/me
-```
-
-### Header
-
-```
-Authorization : Bearer JWT
-```
-
-### Response
-
-```json
-{
-    "id":1,
-    "name":"홍길동",
-    "role":"USER"
-}
-```
-
----
-
-# 2. Book API
-
-## 2.1 인기 도서 조회
-
-### GET
-
-```
-GET /books/popular
-```
-
-### Query
-
-```
-?page=1
-
-&category=문학
-
-&gender=ALL
-
-&age=20
-```
-
-### Response
-
-```json
-[
-  {
-    "isbn":"9780000000",
-    "title":"미움받을 용기",
-    "author":"기시미 이치로",
-    "cover":"...",
-    "rank":1
+  "success": true,
+  "message": "로그인되었습니다.",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "user": { "id": 12, "name": "김도서", "role": "LIBRARIAN", "libraryName": "부산대학교 도서관" }
   }
-]
-```
-
----
-
-## 2.2 오늘의 잠자는 책
-
-### GET
-
-```
-GET /books/today
-```
-
-### Response
-
-```json
-{
-    "isbn":"97812345",
-    "title":"...",
-    "reason":"AI 추천"
 }
 ```
 
----
+### 2.3 내 정보 조회
 
-## 2.3 랜덤 탐색
+`GET /auth/me` · 인증 필요
 
-### GET
-
-```
-GET /books/random
+```json
+{ "success": true, "data": { "id": 12, "name": "김도서", "nickname": "책지기", "role": "LIBRARIAN", "libraryName": "부산대학교 도서관" } }
 ```
 
----
+## 3. 도서 탐색 API
 
-## 2.4 도서 상세 조회
+### 3.1 인기 도서 조회
 
-### GET
+`GET /books/popular?page=1&size=12&category=문학&gender=ALL&age=20`
 
-```
-GET /books/{isbn}
-```
-
-### Response
+| 쿼리 | 타입 | 기본값 | 설명 |
+|---|---|---|---|
+| page | Number | 1 | 페이지 번호 |
+| size | Number | 12 | 페이지당 개수 |
+| category | String | ALL | 분야 |
+| gender | String | ALL | `ALL`, `M`, `F` |
+| age | Number | - | 연령대 |
 
 ```json
 {
-    "isbn":"",
-    "title":"",
-    "author":"",
-    "publisher":"",
-    "description":"",
-    "cover":""
+  "success": true,
+  "data": {
+    "content": [{ "isbn": "9788996991342", "title": "미움받을 용기", "author": "기시미 이치로", "cover": "https://...", "rank": 1, "loanCount": 1284 }],
+    "page": 1, "totalPages": 8, "totalElements": 89
+  }
 }
 ```
 
----
+### 3.2 도서 검색
 
-## 2.5 도서 검색
+`GET /books/search?keyword=심리&page=1&size=12`
 
-### GET
+제목, 저자, 출판사, 키워드를 통합 검색합니다. 응답은 인기 도서 조회의 페이지 형식과 같습니다.
 
-```
-GET /books/search
-```
+### 3.3 도서 상세 조회
 
-### Query
-
-```
-keyword=심리
-```
-
----
-
-# 3. AI API
-
-## 3.1 키워드 생성
-
-### POST
-
-```
-POST /ai/keywords
-```
-
-### Request
+`GET /books/{isbn}`
 
 ```json
 {
-    "isbn":"97812345"
+  "success": true,
+  "data": {
+    "isbn": "9788996991342", "title": "미움받을 용기", "author": "기시미 이치로", "publisher": "인플루엔셜", "publishedYear": 2014,
+    "cover": "https://...", "description": "아들러 심리학을 바탕으로...", "tableOfContents": ["트라우마를 부정하라"],
+    "availability": "AVAILABLE", "libraries": [{ "name": "부산시립시민도서관", "callNumber": "189.1-기58ㅁ", "available": true }]
+  }
 }
 ```
 
-### Response
+### 3.4 오늘의 잠자는 책
+
+`GET /books/today`
+
+매일 선정되는 저이용·고품질 도서 한 권과 추천 이유를 반환합니다.
 
 ```json
-[
-    "심리",
-    "자존감",
-    "인간관계"
-]
+{ "success": true, "data": { "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "cover": "https://...", "reason": "나를 지키면서 타인과 건강하게 연결되는 연습을 만나 보세요.", "keywords": ["인간관계", "심리"] } }
 ```
 
----
+### 3.5 우연히 발견하기
 
-## 3.2 도서 추천
+`GET /books/random`
 
-### POST
+품질 검증을 통과한 잠자는 도서 중 한 권을 무작위로 반환합니다.
 
+## 4. AI 추천 API
+
+### 4.1 핵심 키워드 생성
+
+`POST /ai/keywords`
+
+```json
+{ "isbn": "9788996991342" }
 ```
-POST /recommendations
+
+```json
+{ "success": true, "data": { "keywords": ["인간관계", "자존감", "심리", "행복", "용기"] } }
 ```
 
-### Request
+### 4.2 잠자는 도서 추천
+
+`POST /recommendations`
+
+선택 키워드, 독서 목적·분위기·시간을 반영해 잠자는 도서를 추천합니다.
 
 ```json
 {
-    "isbn":"97812345",
-
-    "keywords":[
-        "심리",
-        "인간관계"
-    ],
-
-    "purpose":"위로",
-
-    "mood":"따뜻한",
-
-    "readingTime":"SHORT"
+  "isbn": "9788996991342",
+  "keywords": ["인간관계", "심리"],
+  "purpose": "마음의 위로",
+  "mood": "따뜻한",
+  "readingTime": "MEDIUM"
 }
 ```
 
-### Response
-
-```json
-[
-    {
-        "isbn":"978111",
-
-        "title":"",
-
-        "score":91,
-
-        "reason":"..."
-    }
-]
-```
-
----
-
-## 3.3 도서 비교
-
-### POST
-
-```
-POST /recommendations/compare
-```
-
-### Request
+| 필드 | 값 |
+|---|---|
+| purpose | `마음의 위로`, `새로운 관점`, `실용적인 해결책`, `깊이 있는 사유` |
+| mood | `따뜻한`, `담백한`, `유쾌한`, `사색적인` |
+| readingTime | `SHORT`, `MEDIUM`, `LONG`, `SLOW` |
 
 ```json
 {
-    "popularBook":"978111",
-
-    "hiddenBook":"978222"
+  "success": true,
+  "data": [{
+    "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "author": "박상미", "cover": "https://...",
+    "score": 93, "keywordRelevance": 95, "purposeMatch": 92, "moodMatch": 90, "timeMatch": 88, "discoveryValue": 89,
+    "reason": "나를 지키면서 타인과 건강하게 연결되는 구체적인 연습법을 만나 보세요.",
+    "keywords": ["인간관계", "심리", "자존감"]
+  }]
 }
 ```
 
-### Response
+### 4.3 인기·잠자는 도서 비교
+
+`POST /recommendations/compare`
+
+```json
+{ "popularBook": "9788996991342", "hiddenBook": "9788960867450" }
+```
 
 ```json
 {
-    "commonKeyword":[
-        "심리",
-        "자존감"
-    ],
-
-    "difference":"..."
+  "success": true,
+  "data": {
+    "commonKeywords": ["인간관계", "심리", "자존감"],
+    "difference": "두 책 모두 타인의 시선에서 벗어나는 태도를 다루며, 추천 도서는 일상 관계의 사례에 더 집중합니다.",
+    "popularBookProfile": { "difficulty": "보통", "style": "철학적 대화" },
+    "hiddenBookProfile": { "difficulty": "쉬움", "style": "일상 사례" }
+  }
 }
 ```
 
----
+### 4.4 연관 조건 재탐색
 
-# 4. Bookshelf API
+`POST /recommendations/explore`
 
-## 4.1 책장 조회
-
-### GET
-
-```
-GET /bookshelf
+```json
+{ "isbn": "9788960867450", "type": "DEEPER" }
 ```
 
----
+`type`: `SIMILAR_TOPIC`, `SAME_MOOD`, `EASIER`, `DEEPER`, `OPPOSITE_VIEW`
 
-## 4.2 책 저장
+## 5. 나의 책장 API
 
-### POST
+모든 API는 인증이 필요합니다.
 
-```
-POST /bookshelf
-```
+### 5.1 책장 및 도서 목록 조회
 
-### Request
+`GET /bookshelves`
 
 ```json
 {
-    "isbn":"978111",
-
-    "status":"WISH"
+  "success": true,
+  "data": [{
+    "id": 1, "name": "읽고 싶은 책", "type": "DEFAULT", "bookCount": 4,
+    "books": [{ "id": 101, "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "status": "WISH", "cover": "https://..." }]
+  }]
 }
 ```
 
----
+### 5.2 사용자 컬렉션 생성
 
-## 4.3 읽기 상태 변경
+`POST /bookshelves`
 
-### PATCH
-
-```
-PATCH /bookshelf/{id}
+```json
+{ "name": "마음을 돌보는 책", "description": "천천히 읽고 싶은 책 모음" }
 ```
 
-### Request
+### 5.3 책장에 도서 저장
+
+`POST /bookshelves/{shelfId}/books`
+
+```json
+{ "isbn": "9788960867450", "status": "WISH" }
+```
+
+`status`: `WISH`, `READING`, `COMPLETED`, `REVISIT`
+
+### 5.4 읽기 상태 변경
+
+`PATCH /bookshelves/{shelfId}/books/{bookId}`
+
+```json
+{ "status": "READING" }
+```
+
+### 5.5 책장 도서 삭제
+
+`DELETE /bookshelves/{shelfId}/books/{bookId}`
+
+### 5.6 컬렉션 수정 및 삭제
+
+`PATCH /bookshelves/{shelfId}` · `DELETE /bookshelves/{shelfId}`
+
+## 6. 사서 API
+
+모든 API는 `LIBRARIAN` 권한이 필요합니다. 일반 사용자는 `403 FORBIDDEN`을 반환합니다.
+
+### 6.1 사서 대시보드
+
+`GET /librarian/dashboard`
 
 ```json
 {
-    "status":"READING"
+  "success": true,
+  "data": {
+    "hiddenBookCount": 128, "monthlyCurationCount": 12, "exhibitionLoanRate": 86,
+    "popularKeywords": ["청년", "불안", "관계"],
+    "recentCurations": [{ "id": 5, "title": "괜찮지 않아도 괜찮은 우리에게", "bookCount": 5, "isPublic": true }]
+  }
 }
 ```
 
----
+### 6.2 AI 큐레이션 초안 생성
 
-## 4.4 책 삭제
-
-### DELETE
-
-```
-DELETE /bookshelf/{id}
-```
-
----
-
-## 4.5 사용자 컬렉션 생성
-
-### POST
-
-```
-POST /collections
-```
-
-### Request
+`POST /librarian/curations/generate`
 
 ```json
 {
-    "name":"힐링도서"
+  "topic": "청년의 불안", "targetAge": "20대", "mood": "따뜻한", "category": "인문", "bookCount": 5,
+  "excludedKeywords": ["취업"], "purpose": "전시 큐레이션"
 }
 ```
-
----
-
-## 4.6 컬렉션에 도서 추가
-
-### POST
-
-```
-POST /collections/{id}/books
-```
-
-### Request
 
 ```json
 {
-    "isbn":"978111"
+  "success": true,
+  "data": {
+    "title": "괜찮지 않아도 괜찮은 우리에게", "description": "불안한 오늘을 지나가는 청년들을 위한 다정한 책의 목소리.",
+    "hashtags": ["#청년", "#불안", "#마음돌봄"],
+    "books": [{ "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "reason": "관계 불안을 구체적인 사례로 풀어냅니다." }]
+  }
 }
 ```
 
----
+### 6.3 큐레이션 저장 및 조회
 
-# 5. Librarian API
-
-## 5.1 대시보드 조회
-
-### GET
-
-```
-GET /librarian/dashboard
-```
-
----
-
-## 5.2 큐레이션 생성
-
-### POST
-
-```
-POST /librarian/curation
-```
-
-### Request
+- `POST /librarian/curations`: 큐레이션 저장
+- `GET /librarian/curations?page=1&size=10`: 내 큐레이션 목록 조회
+- `GET /librarian/curations/{curationId}`: 큐레이션 상세 조회
 
 ```json
-{
-    "topic":"청년의 불안",
-
-    "target":"20대",
-
-    "count":5
-}
+{ "title": "괜찮지 않아도 괜찮은 우리에게", "description": "...", "isPublic": true, "books": [{ "isbn": "9788960867450", "displayOrder": 1, "comment": "관계 불안을 다정하게 다룹니다." }] }
 ```
 
-### Response
+### 6.4 큐레이션 수정 및 삭제
 
-```json
-{
-    "title":"괜찮지 않아도 괜찮은 우리에게",
+- `PATCH /librarian/curations/{curationId}`: 제목, 소개, 공개 여부, 도서 순서 수정
+- `DELETE /librarian/curations/{curationId}`: 큐레이션 삭제
 
-    "description":"...",
+## 7. 주요 오류 코드
 
-    "books":[]
-}
-```
-
----
-
-## 5.3 큐레이션 저장
-
-### POST
-
-```
-POST /librarian/curation/save
-```
-
----
-
-## 5.4 큐레이션 수정
-
-### PATCH
-
-```
-PATCH /librarian/curation/{id}
-```
-
----
-
-## 5.5 큐레이션 삭제
-
-### DELETE
-
-```
-DELETE /librarian/curation/{id}
-```
-
----
-
-# Response Format
-
-## Success
-
-```json
-{
-    "success":true,
-
-    "message":"success",
-
-    "data":{}
-}
-```
-
----
-
-## Error
-
-```json
-{
-    "success":false,
-
-    "message":"Not Found",
-
-    "errorCode":"BOOK_NOT_FOUND"
-}
-```
-
----
-
-# HTTP Status
-
-|Code|Description|
-|-----|-----------|
-|200|OK|
-|201|Created|
-|204|No Content|
-|400|Bad Request|
-|401|Unauthorized|
-|403|Forbidden|
-|404|Not Found|
-|500|Internal Server Error|
+| HTTP | 코드 | 상황 |
+|---:|---|---|
+| 400 | `VALIDATION_001` | 요청값 누락 또는 형식 오류 |
+| 401 | `AUTH_001` | 인증 토큰 없음 또는 만료 |
+| 403 | `AUTH_002` | 역할 권한 없음 |
+| 404 | `BOOK_001` | 도서를 찾을 수 없음 |
+| 404 | `CURATION_001` | 큐레이션을 찾을 수 없음 |
+| 409 | `AUTH_003` | 이미 사용 중인 이메일 |
+| 500 | `AI_001` | AI 추천 생성 실패 |
