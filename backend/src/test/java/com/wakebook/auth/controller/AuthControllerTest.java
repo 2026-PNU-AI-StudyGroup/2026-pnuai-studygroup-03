@@ -1,10 +1,14 @@
 package com.wakebook.auth.controller;
 
+import com.wakebook.auth.dto.LoginRequest;
+import com.wakebook.auth.dto.LoginResponse;
+import com.wakebook.auth.dto.LoginUserResponse;
 import com.wakebook.auth.dto.SignupRequest;
 import com.wakebook.auth.dto.SignupResponse;
 import com.wakebook.auth.service.AuthService;
 import com.wakebook.common.exception.DuplicateEmailException;
 import com.wakebook.common.exception.GlobalExceptionHandler;
+import com.wakebook.common.exception.InvalidCredentialsException;
 import com.wakebook.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -80,7 +85,7 @@ class AuthControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("COMMON_001"))
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
                 .andExpect(jsonPath("$.message")
                         .value("사서는 소속 도서관과 담당 부서를 입력해야 합니다."))
                 .andExpect(jsonPath("$.data").doesNotExist());
@@ -105,7 +110,7 @@ class AuthControllerTest {
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("AUTH_002"))
+                .andExpect(jsonPath("$.code").value("AUTH_003"))
                 .andExpect(jsonPath("$.message").value("이미 사용 중인 이메일입니다."))
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
@@ -124,8 +129,76 @@ class AuthControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("COMMON_001"))
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
                 .andExpect(jsonPath("$.message").value("요청값을 확인해 주세요."))
                 .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    void loginReturnsApiSpecificationResponse() throws Exception {
+        LoginUserResponse user = new LoginUserResponse(
+                12L,
+                "김도서",
+                UserRole.LIBRARIAN,
+                "부산대학교 도서관"
+        );
+        when(authService.login(any(LoginRequest.class)))
+                .thenReturn(new LoginResponse("access-token", user));
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "librarian@wakebook.kr",
+                                  "password": "Password!123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("로그인되었습니다."))
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.data.user.id").value(12))
+                .andExpect(jsonPath("$.data.user.name").value("김도서"))
+                .andExpect(jsonPath("$.data.user.role").value("LIBRARIAN"))
+                .andExpect(jsonPath("$.data.user.libraryName").value("부산대학교 도서관"));
+    }
+
+    @Test
+    void invalidLoginCredentialsReturnUnauthorizedResponse() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new InvalidCredentialsException());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "librarian@wakebook.kr",
+                                  "password": "wrong-password"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message")
+                        .value("이메일 또는 비밀번호가 올바르지 않습니다."))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void loginValidatesEmailAndPassword() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "not-an-email",
+                                  "password": ""
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        verifyNoInteractions(authService);
     }
 }
