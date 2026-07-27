@@ -3,6 +3,8 @@ package com.wakebook.bookshelf.service;
 import com.wakebook.bookshelf.domain.Bookshelf;
 import com.wakebook.bookshelf.domain.BookshelfType;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
+import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
+import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
 import com.wakebook.bookshelf.repository.BookshelfRepository;
 import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.user.domain.User;
@@ -50,6 +52,23 @@ public class BookshelfService {
         bookshelfRepository.save(Bookshelf.createDefault(user));
     }
 
+    @Transactional
+    public CreateBookshelfResponse createBookshelf(
+            String authenticatedUserId,
+            CreateBookshelfRequest request
+    ) {
+        Long userId = parseUserId(authenticatedUserId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(AuthenticationRequiredException::new);
+        Bookshelf bookshelf = Bookshelf.createCustom(
+                user,
+                request.name().strip(),
+                nullableStrip(request.description())
+        );
+
+        return CreateBookshelfResponse.from(bookshelfRepository.save(bookshelf));
+    }
+
     private static Long parseUserId(String authenticatedUserId) {
         try {
             long userId = Long.parseLong(authenticatedUserId);
@@ -60,5 +79,12 @@ public class BookshelfService {
         } catch (NumberFormatException exception) {
             throw new AuthenticationRequiredException();
         }
+    }
+
+    private static String nullableStrip(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.strip();
     }
 }

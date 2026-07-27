@@ -6,6 +6,8 @@ import com.wakebook.bookshelf.domain.BookshelfBook;
 import com.wakebook.bookshelf.domain.BookshelfType;
 import com.wakebook.bookshelf.domain.ReadingStatus;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
+import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
+import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
 import com.wakebook.bookshelf.repository.BookshelfRepository;
 import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.user.domain.User;
@@ -24,6 +26,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -131,6 +134,69 @@ class BookshelfServiceTest {
         assertThat(captor.getValue().getName()).isEqualTo("읽고 싶은 책");
         assertThat(captor.getValue().getType()).isEqualTo(BookshelfType.DEFAULT);
         assertThat(captor.getValue().getBooks()).isEmpty();
+    }
+
+    @Test
+    void createsACustomCollectionForTheAuthenticatedUser() {
+        User user = user(12L);
+        ArgumentCaptor<Bookshelf> captor = ArgumentCaptor.forClass(Bookshelf.class);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.save(any(Bookshelf.class))).thenAnswer(invocation -> {
+            Bookshelf bookshelf = invocation.getArgument(0);
+            ReflectionTestUtils.setField(bookshelf, "id", 2L);
+            return bookshelf;
+        });
+
+        CreateBookshelfResponse result = bookshelfService.createBookshelf(
+                "12",
+                new CreateBookshelfRequest(
+                        "  마음을 돌보는 책  ",
+                        "  천천히 읽고 싶은 책 모음  "
+                )
+        );
+
+        verify(bookshelfRepository).save(captor.capture());
+        Bookshelf saved = captor.getValue();
+        assertThat(saved.getName()).isEqualTo("마음을 돌보는 책");
+        assertThat(saved.getDescription()).isEqualTo("천천히 읽고 싶은 책 모음");
+        assertThat(saved.getType()).isEqualTo(BookshelfType.CUSTOM);
+        assertThat(saved.getBooks()).isEmpty();
+        assertThat(result.id()).isEqualTo(2L);
+        assertThat(result.name()).isEqualTo("마음을 돌보는 책");
+        assertThat(result.description()).isEqualTo("천천히 읽고 싶은 책 모음");
+        assertThat(result.type()).isEqualTo(BookshelfType.CUSTOM);
+    }
+
+    @Test
+    void storesABlankOptionalDescriptionAsNull() {
+        User user = user(12L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.save(any(Bookshelf.class))).thenAnswer(invocation -> {
+            Bookshelf bookshelf = invocation.getArgument(0);
+            ReflectionTestUtils.setField(bookshelf, "id", 2L);
+            return bookshelf;
+        });
+
+        CreateBookshelfResponse result = bookshelfService.createBookshelf(
+                "12",
+                new CreateBookshelfRequest("새 컬렉션", "   ")
+        );
+
+        assertThat(result.description()).isNull();
+    }
+
+    @Test
+    void doesNotCreateACollectionForAnUnknownUser() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bookshelfService.createBookshelf(
+                "999",
+                new CreateBookshelfRequest("새 컬렉션", null)
+        ))
+                .isInstanceOf(AuthenticationRequiredException.class)
+                .hasMessage("로그인이 필요합니다.");
+
+        verify(bookshelfRepository, never()).save(any());
     }
 
     private static User user(Long id) {
