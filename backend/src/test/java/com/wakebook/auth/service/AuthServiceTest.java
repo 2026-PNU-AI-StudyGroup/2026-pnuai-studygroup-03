@@ -6,6 +6,7 @@ import com.wakebook.auth.dto.MyInfoResponse;
 import com.wakebook.auth.dto.SignupRequest;
 import com.wakebook.auth.dto.SignupResponse;
 import com.wakebook.auth.token.JwtTokenProvider;
+import com.wakebook.bookshelf.service.BookshelfService;
 import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.common.exception.DuplicateEmailException;
 import com.wakebook.common.exception.InvalidCredentialsException;
@@ -43,6 +44,9 @@ class AuthServiceTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private BookshelfService bookshelfService;
+
     @Test
     void signupNormalizesEmailAndEncryptsPassword() {
         AuthService authService = createAuthService();
@@ -71,6 +75,7 @@ class AuthServiceTest {
         assertThat(savedUser.getDepartment()).isEqualTo("자료운영팀");
         assertThat(response.role()).isEqualTo(UserRole.LIBRARIAN);
         assertThat(response.name()).isEqualTo("김도서");
+        verify(bookshelfService).createDefaultBookshelf(savedUser);
     }
 
     @Test
@@ -93,6 +98,7 @@ class AuthServiceTest {
 
         verify(passwordEncoder, never()).encode(any());
         verify(userRepository, never()).save(any());
+        verify(bookshelfService, never()).createDefaultBookshelf(any());
     }
 
     @Test
@@ -242,7 +248,12 @@ class AuthServiceTest {
     }
 
     private AuthService createAuthService() {
-        return new AuthService(userRepository, passwordEncoder, jwtTokenProvider);
+        return new AuthService(
+                userRepository,
+                passwordEncoder,
+                jwtTokenProvider,
+                bookshelfService
+        );
     }
 
     private static User librarianUser() {

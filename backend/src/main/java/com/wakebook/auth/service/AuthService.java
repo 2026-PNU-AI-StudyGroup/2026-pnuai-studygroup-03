@@ -7,6 +7,7 @@ import com.wakebook.auth.dto.MyInfoResponse;
 import com.wakebook.auth.dto.SignupRequest;
 import com.wakebook.auth.dto.SignupResponse;
 import com.wakebook.auth.token.JwtTokenProvider;
+import com.wakebook.bookshelf.service.BookshelfService;
 import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.common.exception.DuplicateEmailException;
 import com.wakebook.common.exception.InvalidCredentialsException;
@@ -30,15 +31,18 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final BookshelfService bookshelfService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtTokenProvider jwtTokenProvider
+            JwtTokenProvider jwtTokenProvider,
+            BookshelfService bookshelfService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.bookshelfService = bookshelfService;
     }
 
     @Transactional
@@ -60,6 +64,7 @@ public class AuthService {
         );
 
         User savedUser = userRepository.save(user);
+        bookshelfService.createDefaultBookshelf(savedUser);
         return new SignupResponse(savedUser.getId(), savedUser.getRole(), savedUser.getName());
     }
 
