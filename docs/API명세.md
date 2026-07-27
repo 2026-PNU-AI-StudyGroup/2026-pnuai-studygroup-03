@@ -112,7 +112,17 @@
 
 `GET /books/search?keyword=심리&page=1&size=12`
 
-제목, 저자, 출판사, 키워드를 통합 검색합니다. 응답은 인기 도서 조회의 페이지 형식과 같습니다.
+제목, 저자, 출판사, 키워드를 통합 검색합니다. 응답은 인기 도서 조회와 같은 페이지 형식(`content`, `page`, `totalPages`, `totalElements`)을 사용합니다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": [{ "isbn": "9788996991342", "title": "미움받을 용기", "author": "기시미 이치로", "cover": "https://..." }],
+    "page": 1, "totalPages": 3, "totalElements": 32
+  }
+}
+```
 
 ### 3.3 도서 상세 조회
 
@@ -341,4 +351,6 @@
 | 404 | `BOOK_001` | 도서를 찾을 수 없음 |
 | 404 | `CURATION_001` | 큐레이션을 찾을 수 없음 |
 | 409 | `AUTH_003` | 이미 사용 중인 이메일 |
+| 502 | `BOOK_002` | 정보나루 등 외부 도서 API 연동 실패 |
 | 500 | `AI_001` | AI 추천 생성 실패 |
+| 500 | `SERVER_001` | 그 외 서버 내부 오류 |
