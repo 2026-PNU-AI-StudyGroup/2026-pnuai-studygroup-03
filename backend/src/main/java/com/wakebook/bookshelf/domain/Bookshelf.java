@@ -91,6 +91,10 @@ public class Bookshelf {
         return name;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
     public BookshelfType getType() {
         return type;
     }

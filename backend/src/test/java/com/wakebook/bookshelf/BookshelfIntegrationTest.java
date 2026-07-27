@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -130,6 +131,159 @@ class BookshelfIntegrationTest {
         mockMvc.perform(get("/api/bookshelves")
                         .contextPath("/api")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("로그인이 필요합니다."))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void createsACustomCollectionAndExposesItOnlyToItsOwner() throws Exception {
+        AuthSession owner = signupAndLogin("collection-owner@wakebook.kr");
+        AuthSession other = signupAndLogin("collection-other@wakebook.kr");
+
+        String createResponse = mockMvc.perform(post("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "  마음을 돌보는 책  ",
+                                  "description": "  천천히 읽고 싶은 책 모음  "
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("컬렉션이 생성되었습니다."))
+                .andExpect(jsonPath("$.data.id").isNumber())
+                .andExpect(jsonPath("$.data.name").value("마음을 돌보는 책"))
+                .andExpect(jsonPath("$.data.description")
+                        .value("천천히 읽고 싶은 책 모음"))
+                .andExpect(jsonPath("$.data.type").value("CUSTOM"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Number collectionId = JsonPath.read(createResponse, "$.data.id");
+
+        List<Bookshelf> ownerShelves =
+                bookshelfRepository.findAllWithBooksByUserId(owner.userId());
+        Bookshelf created = ownerShelves.stream()
+                .filter(bookshelf -> bookshelf.getId().equals(collectionId.longValue()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(created.getName()).isEqualTo("마음을 돌보는 책");
+        assertThat(created.getDescription()).isEqualTo("천천히 읽고 싶은 책 모음");
+
+        mockMvc.perform(get("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].type").value("DEFAULT"))
+                .andExpect(jsonPath("$.data[1].id").value(collectionId))
+                .andExpect(jsonPath("$.data[1].name").value("마음을 돌보는 책"))
+                .andExpect(jsonPath("$.data[1].type").value("CUSTOM"))
+                .andExpect(jsonPath("$.data[1].bookCount").value(0))
+                .andExpect(jsonPath("$.data[1].books").isEmpty());
+
+        mockMvc.perform(get("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + other.accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].type").value("DEFAULT"));
+    }
+
+    @Test
+    void rejectsInvalidCollectionFields() throws Exception {
+        AuthSession session = signupAndLogin("invalid-collection@wakebook.kr");
+
+        mockMvc.perform(post("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + session.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "   ",
+                                  "description": "설명"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message").value("컬렉션 이름을 입력해 주세요."));
+
+        mockMvc.perform(post("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + session.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "%s"
+                                }
+                                """.formatted("가".repeat(101))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message")
+                        .value("컬렉션 이름은 100자 이하여야 합니다."));
+
+        mockMvc.perform(post("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + session.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "새 컬렉션",
+                                  "description": "%s"
+                                }
+                                """.formatted("가".repeat(501))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message")
+                        .value("컬렉션 설명은 500자 이하여야 합니다."));
+
+        assertThat(bookshelfRepository.findAllWithBooksByUserId(session.userId()))
+                .hasSize(1);
+    }
+
+    @Test
+    void creatingACollectionWithoutATokenReturnsTheAuthenticationError() throws Exception {
+        mockMvc.perform(post("/api/bookshelves")
+                        .contextPath("/api")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "새 컬렉션"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("AUTH_001"))
+                .andExpect(jsonPath("$.message").value("로그인이 필요합니다."))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void creatingACollectionForAnUnknownUserReturnsTheAuthenticationError()
+            throws Exception {
+        String token = createToken(
+                "999999",
+                "USER",
+                Instant.now(),
+                Instant.now().plusSeconds(3600)
+        );
+
+        mockMvc.perform(post("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "새 컬렉션"
+                                }
+                                """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("AUTH_001"))
