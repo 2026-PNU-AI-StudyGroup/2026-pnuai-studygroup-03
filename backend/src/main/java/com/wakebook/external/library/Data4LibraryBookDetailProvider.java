@@ -1,0 +1,66 @@
+package com.wakebook.external.library;
+
+import com.wakebook.common.ApiException;
+import com.wakebook.external.library.dto.BookDetailApiResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import java.util.Optional;
+
+@Component
+public class Data4LibraryBookDetailProvider implements BookDetailProvider {
+
+    private final RestClient restClient;
+    private final String authKey;
+
+    public Data4LibraryBookDetailProvider(Data4LibraryProperties properties) {
+        this.restClient = RestClient.builder().baseUrl(properties.baseUrl()).build();
+        this.authKey = properties.authKey();
+    }
+
+    @Override
+    public Optional<BookDetail> fetch(String isbn) {
+        BookDetailApiResponse response;
+        try {
+            response = restClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/srchDtlList")
+                    .queryParam("authKey", authKey)
+                    .queryParam("isbn13", isbn)
+                    .queryParam("format", "json")
+                    .build())
+                .retrieve()
+                .body(BookDetailApiResponse.class);
+        } catch (RestClientException e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "BOOK_002", "도서 상세 조회에 실패했습니다.");
+        }
+
+        if (response == null || response.response() == null || response.response().detail() == null) {
+            return Optional.empty();
+        }
+
+        BookDetailApiResponse.Book book = response.response().detail().book();
+        if (book == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(new BookDetail(
+            book.isbn13(),
+            book.bookname(),
+            book.authors(),
+            book.publisher(),
+            parseYear(book.publicationYear()),
+            book.bookImageUrl(),
+            book.description()
+        ));
+    }
+
+    private Integer parseYear(String value) {
+        try {
+            return value == null ? null : Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+}

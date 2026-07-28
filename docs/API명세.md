@@ -126,7 +126,11 @@
 
 ### 3.3 도서 상세 조회
 
-`GET /books/{isbn}`
+`GET /books/{isbn}?region=21`
+
+| 쿼리 | 타입 | 필수 | 설명 |
+|---|---|:---:|---|
+| region | String | X | 도서관정보나루 지역 코드(예: 서울 11, 부산 21). 없으면 `libraries`는 빈 배열, `availability`는 `UNKNOWN` |
 
 ```json
 {
@@ -138,6 +142,10 @@
   }
 }
 ```
+
+`availability`: `AVAILABLE`(대출 가능한 소장 도서관 있음), `UNAVAILABLE`(소장은 하지만 대출 불가), `UNKNOWN`(`region` 미지정 등으로 소장 정보를 조회하지 않음)
+
+> `tableOfContents`는 알라딘(Aladin) Open API로 조회합니다. 도서관·공공데이터가 아닌 민간 서점 API이며, 목차 정보가 없는 책이면 빈 배열을 반환합니다.
 
 ### 3.4 오늘의 잠자는 책
 

@@ -1,14 +1,20 @@
 package com.wakebook.book.service;
 
+import com.wakebook.book.dto.BookDetailResponse;
 import com.wakebook.book.dto.BookSearchResponse;
 import com.wakebook.book.dto.PopularBookResponse;
 import com.wakebook.book.support.BookCategory;
 import com.wakebook.common.ApiException;
 import com.wakebook.common.PageResponse;
+import com.wakebook.external.aladin.TableOfContentsProvider;
+import com.wakebook.external.library.BookDetail;
+import com.wakebook.external.library.BookDetailProvider;
 import com.wakebook.external.library.BookSearchCriteria;
 import com.wakebook.external.library.BookSearchProvider;
 import com.wakebook.external.library.BookSearchResult;
 import com.wakebook.external.library.Data4LibraryProperties;
+import com.wakebook.external.library.LibraryHolding;
+import com.wakebook.external.library.LibraryHoldingProvider;
 import com.wakebook.external.library.PopularLoanBookCriteria;
 import com.wakebook.external.library.PopularLoanBookProvider;
 import com.wakebook.external.library.PopularLoanBookResult;
@@ -29,15 +35,24 @@ public class BookService {
 
     private final PopularLoanBookProvider popularLoanBookProvider;
     private final BookSearchProvider bookSearchProvider;
+    private final BookDetailProvider bookDetailProvider;
+    private final LibraryHoldingProvider libraryHoldingProvider;
+    private final TableOfContentsProvider tableOfContentsProvider;
     private final Data4LibraryProperties properties;
 
     public BookService(
         PopularLoanBookProvider popularLoanBookProvider,
         BookSearchProvider bookSearchProvider,
+        BookDetailProvider bookDetailProvider,
+        LibraryHoldingProvider libraryHoldingProvider,
+        TableOfContentsProvider tableOfContentsProvider,
         Data4LibraryProperties properties
     ) {
         this.popularLoanBookProvider = popularLoanBookProvider;
         this.bookSearchProvider = bookSearchProvider;
+        this.bookDetailProvider = bookDetailProvider;
+        this.libraryHoldingProvider = libraryHoldingProvider;
+        this.tableOfContentsProvider = tableOfContentsProvider;
         this.properties = properties;
     }
 
@@ -76,6 +91,27 @@ public class BookService {
             .toList();
 
         return PageResponse.of(content, validatedPage, validatedSize, result.totalCount());
+    }
+
+    public BookDetailResponse getBookDetail(String isbn, String region) {
+        String validatedIsbn = validateIsbn(isbn);
+
+        BookDetail detail = bookDetailProvider.fetch(validatedIsbn)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "BOOK_001", "도서를 찾을 수 없습니다."));
+
+        List<LibraryHolding> holdings = (region == null || region.isBlank())
+            ? List.of()
+            : libraryHoldingProvider.findHoldings(validatedIsbn, region.trim());
+        List<String> tableOfContents = tableOfContentsProvider.fetch(validatedIsbn);
+
+        return BookDetailResponse.of(detail, holdings, tableOfContents);
+    }
+
+    private String validateIsbn(String isbn) {
+        if (isbn == null || isbn.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_001", "isbn은 필수입니다.");
+        }
+        return isbn.trim();
     }
 
     private String validateKeyword(String keyword) {
