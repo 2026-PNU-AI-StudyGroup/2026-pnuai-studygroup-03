@@ -1,6 +1,8 @@
 package com.wakebook.external.aladin;
 
 import com.wakebook.external.aladin.dto.AladinItemLookupApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -10,6 +12,8 @@ import java.util.List;
 
 @Component
 public class AladinTableOfContentsProvider implements TableOfContentsProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(AladinTableOfContentsProvider.class);
 
     private final RestClient restClient;
     private final String ttbKey;
@@ -38,14 +42,19 @@ public class AladinTableOfContentsProvider implements TableOfContentsProvider {
                 .retrieve()
                 .body(AladinItemLookupApiResponse.class);
         } catch (RestClientException e) {
+            log.warn("알라딘 ItemLookUp 호출 실패 (isbn={})", isbn, e);
             return List.of();
         }
 
         if (response == null || response.item() == null || response.item().isEmpty()) {
+            log.warn("알라딘 ItemLookUp 응답에 item 없음 (isbn={}, response={})", isbn, response);
             return List.of();
         }
 
         AladinItemLookupApiResponse.SubInfo subInfo = response.item().get(0).subInfo();
+        if (subInfo == null) {
+            log.warn("알라딘 ItemLookUp 응답에 subInfo 없음 (isbn={})", isbn);
+        }
         return subInfo == null ? List.of() : parseToc(subInfo.toc());
     }
 

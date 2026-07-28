@@ -2,6 +2,8 @@ package com.wakebook.external.library;
 
 import com.wakebook.common.ApiException;
 import com.wakebook.external.library.dto.BookDetailApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -11,6 +13,8 @@ import java.util.Optional;
 
 @Component
 public class Data4LibraryBookDetailProvider implements BookDetailProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(Data4LibraryBookDetailProvider.class);
 
     private final RestClient restClient;
     private final String authKey;
@@ -33,14 +37,16 @@ public class Data4LibraryBookDetailProvider implements BookDetailProvider {
                 .retrieve()
                 .body(BookDetailApiResponse.class);
         } catch (RestClientException e) {
+            log.error("정보나루 srchDtlList 호출 실패 (isbn={})", isbn, e);
             throw new ApiException(HttpStatus.BAD_GATEWAY, "BOOK_002", "도서 상세 조회에 실패했습니다.");
         }
 
-        if (response == null || response.response() == null || response.response().detail() == null) {
+        if (response == null || response.response() == null
+            || response.response().detail() == null || response.response().detail().isEmpty()) {
             return Optional.empty();
         }
 
-        BookDetailApiResponse.Book book = response.response().detail().book();
+        BookDetailApiResponse.Book book = response.response().detail().get(0).book();
         if (book == null) {
             return Optional.empty();
         }

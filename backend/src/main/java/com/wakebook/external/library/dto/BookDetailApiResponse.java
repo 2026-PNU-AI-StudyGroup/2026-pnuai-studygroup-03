@@ -3,11 +3,13 @@ package com.wakebook.external.library.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BookDetailApiResponse(@JsonProperty("response") Response response) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Response(@JsonProperty("detail") Detail detail) {
+    public record Response(@JsonProperty("detail") List<Detail> detail) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
