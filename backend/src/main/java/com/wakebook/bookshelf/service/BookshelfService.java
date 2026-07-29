@@ -5,10 +5,14 @@ import com.wakebook.bookshelf.domain.BookshelfType;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
 import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
+import com.wakebook.bookshelf.dto.UpdateBookshelfRequest;
+import com.wakebook.bookshelf.dto.UpdateBookshelfResponse;
 import com.wakebook.bookshelf.repository.BookshelfRepository;
+import com.wakebook.common.ApiException;
 import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.user.domain.User;
 import com.wakebook.user.repository.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,6 +71,56 @@ public class BookshelfService {
         );
 
         return CreateBookshelfResponse.from(bookshelfRepository.save(bookshelf));
+    }
+
+    @Transactional
+    public UpdateBookshelfResponse updateBookshelf(
+            String authenticatedUserId,
+            Long shelfId,
+            UpdateBookshelfRequest request
+    ) {
+        Long userId = requireAuthenticatedUserId(authenticatedUserId);
+        Bookshelf bookshelf = findOwnedBookshelf(shelfId, userId);
+        ensureCustomBookshelf(bookshelf);
+        bookshelf.update(
+                request.name().strip(),
+                nullableStrip(request.description())
+        );
+        return UpdateBookshelfResponse.from(bookshelf);
+    }
+
+    @Transactional
+    public void deleteBookshelf(String authenticatedUserId, Long shelfId) {
+        Long userId = requireAuthenticatedUserId(authenticatedUserId);
+        Bookshelf bookshelf = findOwnedBookshelf(shelfId, userId);
+        ensureCustomBookshelf(bookshelf);
+        bookshelfRepository.delete(bookshelf);
+    }
+
+    private Long requireAuthenticatedUserId(String authenticatedUserId) {
+        Long userId = parseUserId(authenticatedUserId);
+        userRepository.findById(userId)
+                .orElseThrow(AuthenticationRequiredException::new);
+        return userId;
+    }
+
+    private Bookshelf findOwnedBookshelf(Long shelfId, Long userId) {
+        return bookshelfRepository.findByIdAndUser_Id(shelfId, userId)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "BOOKSHELF_001",
+                        "컬렉션을 찾을 수 없습니다."
+                ));
+    }
+
+    private static void ensureCustomBookshelf(Bookshelf bookshelf) {
+        if (bookshelf.getType() != BookshelfType.CUSTOM) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "BOOKSHELF_002",
+                    "기본 책장은 수정하거나 삭제할 수 없습니다."
+            );
+        }
     }
 
     private static Long parseUserId(String authenticatedUserId) {

@@ -8,7 +8,10 @@ import com.wakebook.bookshelf.domain.ReadingStatus;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
 import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
+import com.wakebook.bookshelf.dto.UpdateBookshelfRequest;
+import com.wakebook.bookshelf.dto.UpdateBookshelfResponse;
 import com.wakebook.bookshelf.repository.BookshelfRepository;
+import com.wakebook.common.ApiException;
 import com.wakebook.common.exception.AuthenticationRequiredException;
 import com.wakebook.user.domain.User;
 import com.wakebook.user.domain.UserRole;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -26,6 +30,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -197,6 +202,99 @@ class BookshelfServiceTest {
                 .hasMessage("로그인이 필요합니다.");
 
         verify(bookshelfRepository, never()).save(any());
+    }
+
+    @Test
+    void updatesAnOwnedCustomCollection() {
+        User user = user(12L);
+        Bookshelf custom = Bookshelf.createCustom(user, "기존 이름", "기존 설명");
+        ReflectionTestUtils.setField(custom, "id", 2L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(2L, 12L))
+                .thenReturn(Optional.of(custom));
+
+        UpdateBookshelfResponse result = bookshelfService.updateBookshelf(
+                "12",
+                2L,
+                new UpdateBookshelfRequest(
+                        "  천천히 읽을 책  ",
+                        "  이번 달에 읽을 책  "
+                )
+        );
+
+        assertThat(custom.getName()).isEqualTo("천천히 읽을 책");
+        assertThat(custom.getDescription()).isEqualTo("이번 달에 읽을 책");
+        assertThat(result.id()).isEqualTo(2L);
+        assertThat(result.name()).isEqualTo("천천히 읽을 책");
+        assertThat(result.description()).isEqualTo("이번 달에 읽을 책");
+        assertThat(result.type()).isEqualTo(BookshelfType.CUSTOM);
+        verify(bookshelfRepository, never()).save(any());
+    }
+
+    @Test
+    void deletesAnOwnedCustomCollection() {
+        User user = user(12L);
+        Bookshelf custom = Bookshelf.createCustom(user, "정리할 책", null);
+        ReflectionTestUtils.setField(custom, "id", 2L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(2L, 12L))
+                .thenReturn(Optional.of(custom));
+
+        bookshelfService.deleteBookshelf("12", 2L);
+
+        verify(bookshelfRepository).delete(custom);
+    }
+
+    @Test
+    void hidesAnotherUsersOrMissingCollectionAsNotFound() {
+        User user = user(12L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(99L, 12L))
+                .thenReturn(Optional.empty());
+
+        ApiException exception = catchThrowableOfType(
+                ApiException.class,
+                () -> bookshelfService.updateBookshelf(
+                        "12",
+                        99L,
+                        new UpdateBookshelfRequest("새 이름", null)
+                )
+        );
+
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getCode()).isEqualTo("BOOKSHELF_001");
+        assertThat(exception).hasMessage("컬렉션을 찾을 수 없습니다.");
+        verify(bookshelfRepository, never()).delete(any());
+    }
+
+    @Test
+    void preventsUpdatingOrDeletingTheDefaultBookshelf() {
+        User user = user(12L);
+        Bookshelf defaultShelf = Bookshelf.createDefault(user);
+        ReflectionTestUtils.setField(defaultShelf, "id", 1L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(1L, 12L))
+                .thenReturn(Optional.of(defaultShelf));
+
+        ApiException updateException = catchThrowableOfType(
+                ApiException.class,
+                () -> bookshelfService.updateBookshelf(
+                        "12",
+                        1L,
+                        new UpdateBookshelfRequest("바꿀 이름", null)
+                )
+        );
+        ApiException deleteException = catchThrowableOfType(
+                ApiException.class,
+                () -> bookshelfService.deleteBookshelf("12", 1L)
+        );
+
+        assertThat(updateException.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(updateException.getCode()).isEqualTo("BOOKSHELF_002");
+        assertThat(deleteException.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(deleteException.getCode()).isEqualTo("BOOKSHELF_002");
+        assertThat(defaultShelf.getName()).isEqualTo(Bookshelf.DEFAULT_NAME);
+        verify(bookshelfRepository, never()).delete(any());
     }
 
     private static User user(Long id) {

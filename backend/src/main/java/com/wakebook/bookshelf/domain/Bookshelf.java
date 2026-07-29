@@ -83,6 +83,12 @@ public class Bookshelf {
         return bookshelfBook;
     }
 
+    public void update(String name, String description) {
+        this.name = name;
+        this.description = description;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public Long getId() {
         return id;
     }

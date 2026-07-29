@@ -4,6 +4,8 @@ import com.wakebook.bookshelf.domain.BookshelfType;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
 import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
+import com.wakebook.bookshelf.dto.UpdateBookshelfRequest;
+import com.wakebook.bookshelf.dto.UpdateBookshelfResponse;
 import com.wakebook.bookshelf.service.BookshelfService;
 import com.wakebook.common.response.ApiResponse;
 import org.junit.jupiter.api.Test;
@@ -75,5 +77,55 @@ class BookshelfControllerTest {
         assertThat(response.getBody().message()).isEqualTo("컬렉션이 생성되었습니다.");
         assertThat(response.getBody().data()).isEqualTo(created);
         verify(bookshelfService).createBookshelf("12", request);
+    }
+
+    @Test
+    void updatesACollectionForTheAuthenticatedJwtSubject() {
+        BookshelfService bookshelfService = mock(BookshelfService.class);
+        BookshelfController controller = new BookshelfController(bookshelfService);
+        UpdateBookshelfRequest request =
+                new UpdateBookshelfRequest("천천히 읽을 책", "이번 달에 읽을 책");
+        UpdateBookshelfResponse updated = new UpdateBookshelfResponse(
+                2L,
+                "천천히 읽을 책",
+                "이번 달에 읽을 책",
+                BookshelfType.CUSTOM
+        );
+        when(bookshelfService.updateBookshelf("12", 2L, request)).thenReturn(updated);
+        Jwt jwt = jwt("12");
+
+        ResponseEntity<ApiResponse<UpdateBookshelfResponse>> response =
+                controller.updateBookshelf(jwt, 2L, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isTrue();
+        assertThat(response.getBody().message()).isEqualTo("컬렉션이 수정되었습니다.");
+        assertThat(response.getBody().data()).isEqualTo(updated);
+        verify(bookshelfService).updateBookshelf("12", 2L, request);
+    }
+
+    @Test
+    void deletesACollectionForTheAuthenticatedJwtSubject() {
+        BookshelfService bookshelfService = mock(BookshelfService.class);
+        BookshelfController controller = new BookshelfController(bookshelfService);
+        Jwt jwt = jwt("12");
+
+        ResponseEntity<ApiResponse<Void>> response =
+                controller.deleteBookshelf(jwt, 2L);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isTrue();
+        assertThat(response.getBody().message()).isEqualTo("컬렉션이 삭제되었습니다.");
+        assertThat(response.getBody().data()).isNull();
+        verify(bookshelfService).deleteBookshelf("12", 2L);
+    }
+
+    private static Jwt jwt(String subject) {
+        return Jwt.withTokenValue("access-token")
+                .header("alg", "HS256")
+                .subject(subject)
+                .build();
     }
 }
