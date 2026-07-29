@@ -3,6 +3,8 @@ package com.wakebook.common.exception;
 import com.wakebook.common.ApiException;
 import com.wakebook.common.response.ErrorResponse;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,8 +18,13 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApiException(ApiException exception) {
+        if (exception.getStatus().is5xxServerError()) {
+            log.error("[{}] {}", exception.getCode(), exception.getMessage(), exception);
+        }
         return ResponseEntity.status(exception.getStatus())
                 .body(ErrorResponse.of(exception.getCode(), exception.getMessage()));
     }
@@ -72,6 +79,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception exception) {
+        log.error("예상하지 못한 서버 오류", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of("SERVER_001", "서버 오류가 발생했습니다."));
     }
