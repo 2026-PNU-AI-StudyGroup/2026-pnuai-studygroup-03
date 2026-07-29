@@ -5,6 +5,7 @@ import com.wakebook.book.domain.Book;
 import com.wakebook.book.repository.BookRepository;
 import com.wakebook.bookshelf.domain.Bookshelf;
 import com.wakebook.bookshelf.domain.ReadingStatus;
+import com.wakebook.bookshelf.repository.BookshelfBookRepository;
 import com.wakebook.bookshelf.repository.BookshelfRepository;
 import com.wakebook.user.domain.User;
 import com.wakebook.user.repository.UserRepository;
@@ -53,6 +54,9 @@ class BookshelfIntegrationTest {
 
     @Autowired
     private BookshelfRepository bookshelfRepository;
+
+    @Autowired
+    private BookshelfBookRepository bookshelfBookRepository;
 
     @Autowired
     private BookRepository bookRepository;
@@ -291,6 +295,152 @@ class BookshelfIntegrationTest {
                 .andExpect(jsonPath("$.code").value("AUTH_001"))
                 .andExpect(jsonPath("$.message").value("로그인이 필요합니다."))
                 .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void addsABookToAnOwnedBookshelfAndRejectsADuplicate() throws Exception {
+        AuthSession owner = signupAndLogin("save-book@wakebook.kr");
+        Bookshelf defaultShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+        bookRepository.save(new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                "https://example.com/cover.jpg"
+        ));
+
+        mockMvc.perform(post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "isbn": "9788960867450",
+                                  "status": "WISH"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("책장에 도서가 저장되었습니다."))
+                .andExpect(jsonPath("$.data.id").isNumber())
+                .andExpect(jsonPath("$.data.isbn").value("9788960867450"))
+                .andExpect(jsonPath("$.data.title")
+                        .value("관계에도 연습이 필요합니다"))
+                .andExpect(jsonPath("$.data.status").value("WISH"))
+                .andExpect(jsonPath("$.data.cover")
+                        .value("https://example.com/cover.jpg"));
+
+        assertThat(bookshelfBookRepository
+                .existsByBookshelf_IdAndBook_Isbn(
+                        defaultShelf.getId(),
+                        "9788960867450"
+                )).isTrue();
+
+        mockMvc.perform(post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "isbn": "9788960867450",
+                                  "status": "READING"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_003"))
+                .andExpect(jsonPath("$.message")
+                        .value("이미 해당 책장에 저장된 도서입니다."));
+    }
+
+    @Test
+    void preventsAddingABookToAnotherUsersBookshelf() throws Exception {
+        AuthSession owner = signupAndLogin("save-book-owner@wakebook.kr");
+        AuthSession other = signupAndLogin("save-book-other@wakebook.kr");
+        Bookshelf ownerShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+        bookRepository.save(new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                null
+        ));
+
+        mockMvc.perform(post("/api/bookshelves/{shelfId}/books", ownerShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + other.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "isbn": "9788960867450",
+                                  "status": "WISH"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_001"))
+                .andExpect(jsonPath("$.message").value("컬렉션을 찾을 수 없습니다."));
+
+        assertThat(bookshelfBookRepository.count()).isZero();
+    }
+
+    @Test
+    void validatesTheAddBookRequestAndRequiresAuthentication() throws Exception {
+        AuthSession owner = signupAndLogin("invalid-save-book@wakebook.kr");
+        Bookshelf defaultShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+
+        mockMvc.perform(post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "isbn": " ",
+                                  "status": "WISH"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message").value("ISBN을 입력해 주세요."));
+
+        mockMvc.perform(post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "isbn": "9788960867450"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message").value("읽기 상태를 선택해 주세요."));
+
+        mockMvc.perform(post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "isbn": "9788960867450",
+                                  "status": "PAUSED"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"));
+
+        mockMvc.perform(post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                        .contextPath("/api")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "isbn": "9788960867450",
+                                  "status": "WISH"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"));
     }
 
     @Test
