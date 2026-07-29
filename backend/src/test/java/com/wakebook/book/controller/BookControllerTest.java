@@ -1,8 +1,10 @@
 package com.wakebook.book.controller;
 
+import com.wakebook.book.domain.HiddenBook;
 import com.wakebook.book.dto.BookSearchResponse;
 import com.wakebook.book.dto.PopularBookResponse;
 import com.wakebook.book.service.BookService;
+import com.wakebook.book.service.HiddenBookService;
 import com.wakebook.common.ApiException;
 import com.wakebook.common.PageResponse;
 import com.wakebook.common.exception.GlobalExceptionHandler;
@@ -25,13 +27,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BookControllerTest {
 
     private BookService bookService;
+    private HiddenBookService hiddenBookService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         bookService = mock(BookService.class);
+        hiddenBookService = mock(HiddenBookService.class);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new BookController(bookService))
+                .standaloneSetup(new BookController(bookService, hiddenBookService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -128,5 +132,62 @@ class BookControllerTest {
                 .andExpect(jsonPath("$.data.page").value(1));
 
         verify(bookService).searchBooks("심리", 1, 12);
+    }
+
+    @Test
+    void todayBookReturnsTheHiddenBookResponse() throws Exception {
+        HiddenBook hiddenBook = new HiddenBook(
+                "9788960867450",
+                "121018",
+                "부산광역시 금정도서관",
+                "관계에도 연습이 필요합니다",
+                "박상미",
+                "https://example.com/cover.jpg",
+                1,
+                80,
+                "나를 지키면서 타인과 건강하게 연결되는 연습을 만나 보세요.",
+                List.of("인간관계", "심리")
+        );
+        when(hiddenBookService.getTodayBook("121018")).thenReturn(hiddenBook);
+
+        mockMvc.perform(get("/books/today").queryParam("libraryCode", "121018"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.isbn").value("9788960867450"))
+                .andExpect(jsonPath("$.data.reason").value("나를 지키면서 타인과 건강하게 연결되는 연습을 만나 보세요."))
+                .andExpect(jsonPath("$.data.keywords[0]").value("인간관계"));
+    }
+
+    @Test
+    void todayBookWithNoCandidatesReturnsBookNotFoundError() throws Exception {
+        when(hiddenBookService.getTodayBook("121018"))
+                .thenThrow(new ApiException(HttpStatus.NOT_FOUND, "BOOK_001", "오늘의 잠자는 책 후보가 없습니다."));
+
+        mockMvc.perform(get("/books/today").queryParam("libraryCode", "121018"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("BOOK_001"));
+    }
+
+    @Test
+    void randomBookReturnsTheHiddenBookResponse() throws Exception {
+        HiddenBook hiddenBook = new HiddenBook(
+                "9788960867450",
+                "121018",
+                "부산광역시 금정도서관",
+                "관계에도 연습이 필요합니다",
+                "박상미",
+                "https://example.com/cover.jpg",
+                1,
+                80,
+                "나를 지키면서 타인과 건강하게 연결되는 연습을 만나 보세요.",
+                List.of("인간관계", "심리")
+        );
+        when(hiddenBookService.getRandomBook("121018")).thenReturn(hiddenBook);
+
+        mockMvc.perform(get("/books/random").queryParam("libraryCode", "121018"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.isbn").value("9788960867450"));
     }
 }

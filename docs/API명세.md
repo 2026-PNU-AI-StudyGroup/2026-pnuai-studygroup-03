@@ -4,6 +4,17 @@
 > 형식: `application/json; charset=UTF-8`  
 > 인증: 로그인 후 `Authorization: Bearer {accessToken}` 헤더를 사용합니다.
 
+## 변경 이력
+
+### 2026-07-29
+
+"잠자는 도서" 후보군(3.4/3.5/4.2/4.4가 추천하는 도서)이 **도서관별로 분리 관리**되도록 변경했습니다. 사서가 자기 도서관의 정보나루 "장서 대출목록" CSV를 직접 업로드하면, 그 도서관의 후보군만 즉시 갱신됩니다(다른 도서관 데이터는 영향 없음). 이에 따라 아래 API들의 **요청 계약이 바뀌었습니다** — 프론트 작업 시 참고해 주세요.
+
+- **3.4 `GET /books/today`**, **3.5 `GET /books/random`**: 쿼리 파라미터 `libraryCode`(필수) 추가.
+- **4.2 `POST /recommendations`**, **4.4 `POST /recommendations/explore`**: 요청 바디에 `libraryCode`(필수) 필드 추가.
+- **6.5 `POST /librarian/hidden-books/upload`(신규)**: 사서가 CSV 파일을 업로드해 자기 도서관의 후보군을 갱신하는 API 추가.
+- 이전 설계는 "도서관 1곳을 서버 설정값으로 고정 + 매달 자동 배치"였으나, 정보나루가 이 통계를 실시간 API가 아니라 도서관별 다운로드 파일로만 제공한다는 점을 확인해 위 방식으로 변경했습니다.
+
 ## 1. 공통 규칙
 
 ### 응답 형식
@@ -149,19 +160,29 @@
 
 ### 3.4 오늘의 잠자는 책
 
-`GET /books/today`
+`GET /books/today?libraryCode=121018` **(`libraryCode` 필수 — 변경됨, 2026-07-29)**
 
 매일 선정되는 저이용·고품질 도서 한 권과 추천 이유를 반환합니다.
+
+| 쿼리 | 타입 | 필수 | 설명 |
+|---|---|:---:|---|
+| libraryCode | String | O | 도서관정보나루 도서관 코드. 사서가 6.5로 업로드해둔 도서관이어야 후보가 나옵니다. |
 
 ```json
 { "success": true, "data": { "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "cover": "https://...", "reason": "나를 지키면서 타인과 건강하게 연결되는 연습을 만나 보세요.", "keywords": ["인간관계", "심리"] } }
 ```
 
+`libraryCode`에 해당하는 후보가 없으면 `404 BOOK_001`을 반환합니다.
+
 ### 3.5 우연히 발견하기
 
-`GET /books/random`
+`GET /books/random?libraryCode=121018` **(`libraryCode` 필수 — 변경됨, 2026-07-29)**
 
-품질 검증을 통과한 잠자는 도서 중 한 권을 무작위로 반환합니다.
+품질 검증을 통과한 잠자는 도서 중 한 권을 무작위로 반환합니다. 쿼리·응답 형식은 3.4와 동일합니다.
+
+```json
+{ "success": true, "data": { "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "cover": "https://...", "reason": "나를 지키면서 타인과 건강하게 연결되는 연습을 만나 보세요.", "keywords": ["인간관계", "심리"] } }
+```
 
 ## 4. AI 추천 API
 
@@ -186,6 +207,7 @@
 ```json
 {
   "isbn": "9788996991342",
+  "libraryCode": "121018",
   "keywords": ["인간관계", "심리"],
   "purpose": "마음의 위로",
   "mood": "따뜻한",
@@ -195,6 +217,7 @@
 
 | 필드 | 값 |
 |---|---|
+| libraryCode | 도서관정보나루 도서관 코드 **(필수 — 변경됨, 2026-07-29)**. 이 도서관에 업로드된 후보군(6.5)만 대상으로 추천합니다. |
 | purpose | `마음의 위로`, `새로운 관점`, `실용적인 해결책`, `깊이 있는 사유` |
 | mood | `따뜻한`, `담백한`, `유쾌한`, `사색적인` |
 | readingTime | `SHORT`, `MEDIUM`, `LONG`, `SLOW` |
@@ -236,10 +259,27 @@
 `POST /recommendations/explore`
 
 ```json
-{ "isbn": "9788960867450", "type": "DEEPER" }
+{ "isbn": "9788960867450", "libraryCode": "121018", "type": "DEEPER" }
 ```
 
-`type`: `SIMILAR_TOPIC`, `SAME_MOOD`, `EASIER`, `DEEPER`, `OPPOSITE_VIEW`
+| 필드 | 값 |
+|---|---|
+| libraryCode | 도서관정보나루 도서관 코드 **(필수 — 변경됨, 2026-07-29)** |
+| type | `SIMILAR_TOPIC`, `SAME_MOOD`, `EASIER`, `DEEPER`, `OPPOSITE_VIEW` |
+
+주어진 `isbn`을 기준으로 `type` 조건에 맞는 잠자는 도서를 다시 추천합니다. 응답은 조건에 맞는 정도(`relevance`)순으로 정렬된 배열입니다.
+
+```json
+{
+  "success": true,
+  "data": [{
+    "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "author": "박상미", "cover": "https://...",
+    "score": 91, "relevance": 92, "discoveryValue": 89,
+    "reason": "더 깊이 있는 사유를 원한다면 이 책의 후반부 사례가 도움이 됩니다.",
+    "keywords": ["인간관계", "심리", "자존감"]
+  }]
+}
+```
 
 ## 5. 나의 책장 API
 
@@ -348,6 +388,28 @@
 
 - `PATCH /librarian/curations/{curationId}`: 제목, 소개, 공개 여부, 도서 순서 수정
 - `DELETE /librarian/curations/{curationId}`: 큐레이션 삭제
+
+### 6.5 장서/대출 데이터 업로드 (신규, 2026-07-29)
+
+`POST /librarian/hidden-books/upload` · `multipart/form-data`
+
+사서가 [도서관 정보나루 오픈데이터](https://data4library.kr/openDataV)에서 자기 도서관의 "장서 대출목록" CSV를 다운받아 업로드하면, 그 도서관의 "잠자는 도서" 후보군(3.4/3.5/4.2/4.4가 추천 대상으로 쓰는 데이터)을 즉시 다시 산출합니다. 같은 `libraryCode`로 이미 저장돼 있던 이전 후보군은 삭제되고 새 결과로 교체됩니다(다른 도서관 데이터는 영향 없음).
+
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|:---:|---|
+| libraryCode | String | O | 도서관정보나루 도서관 코드 |
+| libraryName | String | O | 도서관명(표시용) |
+| file | File | O | 정보나루에서 다운받은 "장서 대출목록" CSV 원본 파일 |
+
+```json
+{
+  "success": true,
+  "message": "장서/대출 데이터를 반영했습니다.",
+  "data": { "libraryCode": "121018", "libraryName": "부산광역시 금정도서관", "totalRows": 3200, "savedCount": 24 }
+}
+```
+
+`totalRows`는 CSV에서 읽은 전체 행 수, `savedCount`는 대출건수 하위·품질 검증을 통과해 실제로 후보군에 저장된 도서 수입니다.
 
 ## 7. 주요 오류 코드
 

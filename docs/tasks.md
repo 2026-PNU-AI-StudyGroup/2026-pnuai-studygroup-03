@@ -23,3 +23,17 @@
 
 - [ ] **`ALADIN_TTB_KEY` 환경변수 설정**: 발급받은 TTBKey를 로컬/배포 환경에 `ALADIN_TTB_KEY`로 설정해야 목차가 채워짐. 안 넣으면 `tableOfContents`는 항상 빈 배열(에러는 안 남).
 - [ ] **`toc` 파싱 검증**: `<br>` 태그·줄바꿈 기준으로 문장을 쪼개도록 구현했는데, 실제 응답으로 여러 책을 받아보고 목차가 항목별로 잘 나뉘는지, 숫자/장 표시(`Ⅰ.`, `1.` 등)가 지저분하게 섞이진 않는지 확인 필요.
+
+## 3.4/3.5 오늘의 잠자는 책·우연히 발견하기, 4번 AI 추천 API
+
+`hidden_books` 테이블(도서관별로 구분 저장)을 3.4/3.5/4.2/4.4가 공통으로 사용하도록 구현 완료.
+(`HiddenBookUploadService.java`, `HiddenBookCsvParser.java`, `HiddenBookService.java`, `com.wakebook.recommendation.*`)
+
+- **후보군 소스가 실시간 API 호출이 아니라 사서의 CSV 업로드 방식으로 바뀜**: 처음에는 정보나루 `itemSrch`를 `libCode`만으로(isbn13 없이) 호출하면 도서관 전체 장서/대출건수를 받아올 수 있을 거라 가정하고 구현했었으나, 실제 호출 결과 `loan_count` 필드 자체가 없고 그냥 최근 등록 장서 목록만 나온다는 걸 확인함(대출 통계가 아님). "장서 대출목록"은 정보나루가 API가 아니라 [오픈데이터 페이지](https://data4library.kr/openDataV)에서 도서관·월 단위로 다운로드해야 하는 CSV였음 — 자동 다운로드 가능한 고정 URL 패턴도 없어서, 사서가 직접 CSV를 다운받아 `POST /librarian/hidden-books/upload`로 업로드하는 방식으로 재설계함(같은 도서관 코드의 기존 후보군은 업로드 시 전부 교체).
+- [ ] **`OPENAI_API_KEY` 발급 및 환경변수 설정**: `openai.api-key`(env `OPENAI_API_KEY`)가 비어 있으면 업로드 처리 중 reason/keywords 생성과 4.1/4.2/4.3/4.4가 전부 `AI_001` 오류를 반환한다. 모델은 기본값 `gpt-4o-mini`(env `OPENAI_MODEL`로 변경 가능)로 잡아뒀는데 실제 사용 모델/비용을 팀에서 다시 확인 필요.
+- [ ] **"도서 정보 품질"/"잠자는 도서 발견 가치" 점수 산정 로직은 임시 휴리스틱**: `HiddenBookUploadService.calculateQualityScore`(publisher/publishedYear/cover/description 유무 기반)와 `RecommendationScorer.discoveryValue`(대출건수를 후보군 내 min-max로 정규화)는 실제 데이터 없이 만든 근사치다. 실사용 데이터가 쌓이면 가중치/기준 재조정 검토.
+- [ ] **CSV 컬럼명 의존성**: `HiddenBookCsvParser`는 정보나루 CSV의 정확한 한글 헤더(`도서명`, `저자`, `ISBN`, `대출건수`)로 값을 찾는다. 정보나루가 CSV 포맷이나 컬럼명을 바꾸면 파싱이 에러 없이 조용히 깨질 수 있음(해당 값이 비거나 0으로 들어감) — 업로드 응답의 `savedCount`가 평소보다 확 줄면 이걸 의심해볼 것.
+- [ ] **업로드 신뢰 모델 검증 필요**: 지금은 `LIBRARIAN` 권한만 있으면 어떤 `libraryCode`/`libraryName`으로도 업로드할 수 있다. 회원가입 때 입력하는 `User.libraryName`(자유 텍스트)과 실제 업로드 대상 도서관이 일치하는지 검증하지 않으므로, 실수나 악의적 사용으로 다른 도서관의 후보군이 덮어써질 수 있음 — 추후 사서-도서관 매핑 검증 로직 필요.
+- [ ] **대형 도서관 CSV 업로드 소요 시간**: 실제 부산광역시 금정도서관 CSV(약 30만 행)로 테스트해보니 업로드 1회에 5분 이상 걸림. `HiddenBookUploadService`가 대출건수 오름차순으로 정렬한 뒤 `candidatePoolSize`(30권)를 채울 때까지 후보를 하나씩 `srchDtlList`로 품질 검증하는데, 통과 못 하는 후보가 많으면(외국어 도서 등 메타데이터 부실) 시도 횟수 자체가 커진다. 트래픽이 늘면 "시도할 후보 수 자체에 상한"을 두거나 비동기 처리(업로드는 바로 202 응답, 처리는 백그라운드)로 개선 검토.
+- **2026-07-29 실제 업로드 E2E 검증 완료**: 부산광역시 금정도서관(libCode 121018) 실제 CSV로 업로드→3.4/3.5/4.1/4.2/4.3/4.4 전부 실제 정보나루·OpenAI API로 호출 확인함. 이 과정에서 `HiddenBook.keywords`가 `@ElementCollection` LAZY 상태라 `open-in-view=false` 환경에서 컨트롤러 응답 직렬화 시점에 `LazyInitializationException`이 나는 버그를 발견해 `FetchType.EAGER`로 수정함. 또한 `spring.servlet.multipart.max-file-size`/`max-request-size` 기본값(10MB)이 실제 CSV(약 49MB)보다 작아 업로드가 실패해서 200MB로 올림.
+- [ ] **`hidden-book.max-loan-count`(기본 2)/`hidden-book.candidate-pool-size`(기본 30) 기준값 재검토**: 실제 CSV 데이터 분포를 보고 조정 필요.
