@@ -1,18 +1,24 @@
 package com.wakebook.bookshelf.service;
 
 import com.wakebook.book.domain.Book;
+import com.wakebook.book.repository.BookRepository;
 import com.wakebook.bookshelf.domain.Bookshelf;
 import com.wakebook.bookshelf.domain.BookshelfBook;
 import com.wakebook.bookshelf.domain.BookshelfType;
 import com.wakebook.bookshelf.domain.ReadingStatus;
+import com.wakebook.bookshelf.dto.AddBookshelfBookRequest;
+import com.wakebook.bookshelf.dto.BookshelfBookResponse;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
 import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
 import com.wakebook.bookshelf.dto.UpdateBookshelfRequest;
 import com.wakebook.bookshelf.dto.UpdateBookshelfResponse;
+import com.wakebook.bookshelf.repository.BookshelfBookRepository;
 import com.wakebook.bookshelf.repository.BookshelfRepository;
 import com.wakebook.common.ApiException;
 import com.wakebook.common.exception.AuthenticationRequiredException;
+import com.wakebook.external.library.BookDetail;
+import com.wakebook.external.library.BookDetailProvider;
 import com.wakebook.user.domain.User;
 import com.wakebook.user.domain.UserRole;
 import com.wakebook.user.repository.UserRepository;
@@ -44,13 +50,28 @@ class BookshelfServiceTest {
     private BookshelfRepository bookshelfRepository;
 
     @Mock
+    private BookshelfBookRepository bookshelfBookRepository;
+
+    @Mock
+    private BookRepository bookRepository;
+
+    @Mock
+    private BookDetailProvider bookDetailProvider;
+
+    @Mock
     private UserRepository userRepository;
 
     private BookshelfService bookshelfService;
 
     @BeforeEach
     void setUp() {
-        bookshelfService = new BookshelfService(bookshelfRepository, userRepository);
+        bookshelfService = new BookshelfService(
+                bookshelfRepository,
+                bookshelfBookRepository,
+                bookRepository,
+                bookDetailProvider,
+                userRepository
+        );
     }
 
     @Test
@@ -202,6 +223,152 @@ class BookshelfServiceTest {
                 .hasMessage("로그인이 필요합니다.");
 
         verify(bookshelfRepository, never()).save(any());
+    }
+
+    @Test
+    void addsAnExistingBookToAnOwnedBookshelf() {
+        User user = user(12L);
+        Bookshelf defaultShelf = Bookshelf.createDefault(user);
+        ReflectionTestUtils.setField(defaultShelf, "id", 1L);
+        Book book = new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                "https://example.com/cover.jpg"
+        );
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(1L, 12L))
+                .thenReturn(Optional.of(defaultShelf));
+        when(bookshelfBookRepository.existsByBookshelf_IdAndBook_Isbn(
+                1L,
+                "9788960867450"
+        )).thenReturn(false);
+        when(bookRepository.findById("9788960867450")).thenReturn(Optional.of(book));
+        when(bookshelfBookRepository.save(any(BookshelfBook.class)))
+                .thenAnswer(invocation -> {
+                    BookshelfBook entry = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(entry, "id", 101L);
+                    return entry;
+                });
+
+        BookshelfBookResponse result = bookshelfService.addBook(
+                "12",
+                1L,
+                new AddBookshelfBookRequest("  9788960867450  ", ReadingStatus.WISH)
+        );
+
+        assertThat(result.id()).isEqualTo(101L);
+        assertThat(result.isbn()).isEqualTo("9788960867450");
+        assertThat(result.title()).isEqualTo("관계에도 연습이 필요합니다");
+        assertThat(result.status()).isEqualTo(ReadingStatus.WISH);
+        assertThat(result.cover()).isEqualTo("https://example.com/cover.jpg");
+        assertThat(defaultShelf.getBooks()).hasSize(1);
+        verifyNoInteractions(bookDetailProvider);
+    }
+
+    @Test
+    void fetchesAndPersistsBookMetadataWhenTheBookIsNotStoredYet() {
+        User user = user(12L);
+        Bookshelf custom = Bookshelf.createCustom(user, "마음을 돌보는 책", null);
+        ReflectionTestUtils.setField(custom, "id", 2L);
+        BookDetail detail = new BookDetail(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                "박상미",
+                "한빛라이프",
+                2020,
+                "https://example.com/cover.jpg",
+                "건강한 관계를 위한 책"
+        );
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(2L, 12L))
+                .thenReturn(Optional.of(custom));
+        when(bookshelfBookRepository.existsByBookshelf_IdAndBook_Isbn(
+                2L,
+                "9788960867450"
+        )).thenReturn(false);
+        when(bookRepository.findById("9788960867450")).thenReturn(Optional.empty());
+        when(bookDetailProvider.fetch("9788960867450")).thenReturn(Optional.of(detail));
+        when(bookRepository.save(any(Book.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(bookshelfBookRepository.save(any(BookshelfBook.class)))
+                .thenAnswer(invocation -> {
+                    BookshelfBook entry = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(entry, "id", 102L);
+                    return entry;
+                });
+
+        BookshelfBookResponse result = bookshelfService.addBook(
+                "12",
+                2L,
+                new AddBookshelfBookRequest("9788960867450", ReadingStatus.READING)
+        );
+
+        ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
+        verify(bookRepository).save(bookCaptor.capture());
+        assertThat(bookCaptor.getValue().getIsbn()).isEqualTo("9788960867450");
+        assertThat(bookCaptor.getValue().getTitle()).isEqualTo("관계에도 연습이 필요합니다");
+        assertThat(result.status()).isEqualTo(ReadingStatus.READING);
+    }
+
+    @Test
+    void rejectsADuplicateBookInTheSameBookshelf() {
+        User user = user(12L);
+        Bookshelf defaultShelf = Bookshelf.createDefault(user);
+        ReflectionTestUtils.setField(defaultShelf, "id", 1L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(1L, 12L))
+                .thenReturn(Optional.of(defaultShelf));
+        when(bookshelfBookRepository.existsByBookshelf_IdAndBook_Isbn(
+                1L,
+                "9788960867450"
+        )).thenReturn(true);
+
+        ApiException exception = catchThrowableOfType(
+                ApiException.class,
+                () -> bookshelfService.addBook(
+                        "12",
+                        1L,
+                        new AddBookshelfBookRequest(
+                                "9788960867450",
+                                ReadingStatus.WISH
+                        )
+                )
+        );
+
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(exception.getCode()).isEqualTo("BOOKSHELF_003");
+        assertThat(exception).hasMessage("이미 해당 책장에 저장된 도서입니다.");
+        verifyNoInteractions(bookRepository, bookDetailProvider);
+        verify(bookshelfBookRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsAnUnknownBook() {
+        User user = user(12L);
+        Bookshelf defaultShelf = Bookshelf.createDefault(user);
+        ReflectionTestUtils.setField(defaultShelf, "id", 1L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(1L, 12L))
+                .thenReturn(Optional.of(defaultShelf));
+        when(bookRepository.findById("0000000000000")).thenReturn(Optional.empty());
+        when(bookDetailProvider.fetch("0000000000000")).thenReturn(Optional.empty());
+
+        ApiException exception = catchThrowableOfType(
+                ApiException.class,
+                () -> bookshelfService.addBook(
+                        "12",
+                        1L,
+                        new AddBookshelfBookRequest(
+                                "0000000000000",
+                                ReadingStatus.WISH
+                        )
+                )
+        );
+
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getCode()).isEqualTo("BOOK_001");
+        verify(bookRepository, never()).save(any());
+        verify(bookshelfBookRepository, never()).save(any());
     }
 
     @Test

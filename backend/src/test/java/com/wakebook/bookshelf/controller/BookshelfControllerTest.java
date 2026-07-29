@@ -1,6 +1,9 @@
 package com.wakebook.bookshelf.controller;
 
 import com.wakebook.bookshelf.domain.BookshelfType;
+import com.wakebook.bookshelf.domain.ReadingStatus;
+import com.wakebook.bookshelf.dto.AddBookshelfBookRequest;
+import com.wakebook.bookshelf.dto.BookshelfBookResponse;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
 import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
@@ -77,6 +80,32 @@ class BookshelfControllerTest {
         assertThat(response.getBody().message()).isEqualTo("컬렉션이 생성되었습니다.");
         assertThat(response.getBody().data()).isEqualTo(created);
         verify(bookshelfService).createBookshelf("12", request);
+    }
+
+    @Test
+    void addsABookForTheAuthenticatedJwtSubject() {
+        BookshelfService bookshelfService = mock(BookshelfService.class);
+        BookshelfController controller = new BookshelfController(bookshelfService);
+        AddBookshelfBookRequest request =
+                new AddBookshelfBookRequest("9788960867450", ReadingStatus.WISH);
+        BookshelfBookResponse saved = new BookshelfBookResponse(
+                101L,
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                ReadingStatus.WISH,
+                "https://example.com/cover.jpg"
+        );
+        when(bookshelfService.addBook("12", 1L, request)).thenReturn(saved);
+
+        ResponseEntity<ApiResponse<BookshelfBookResponse>> response =
+                controller.addBook(jwt("12"), 1L, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isTrue();
+        assertThat(response.getBody().message()).isEqualTo("책장에 도서가 저장되었습니다.");
+        assertThat(response.getBody().data()).isEqualTo(saved);
+        verify(bookshelfService).addBook("12", 1L, request);
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.wakebook.bookshelf.controller;
 
+import com.wakebook.bookshelf.dto.AddBookshelfBookRequest;
+import com.wakebook.bookshelf.dto.BookshelfBookResponse;
 import com.wakebook.bookshelf.dto.BookshelfResponse;
 import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
@@ -50,6 +52,18 @@ public class BookshelfController {
                 bookshelfService.createBookshelf(jwt.getSubject(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("컬렉션이 생성되었습니다.", response));
+    }
+
+    @PostMapping("/{shelfId}/books")
+    public ResponseEntity<ApiResponse<BookshelfBookResponse>> addBook(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long shelfId,
+            @Valid @RequestBody AddBookshelfBookRequest request
+    ) {
+        BookshelfBookResponse response =
+                bookshelfService.addBook(jwt.getSubject(), shelfId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("책장에 도서가 저장되었습니다.", response));
     }
 
     @PatchMapping("/{shelfId}")
