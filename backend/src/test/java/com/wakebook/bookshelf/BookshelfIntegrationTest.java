@@ -444,6 +444,167 @@ class BookshelfIntegrationTest {
     }
 
     @Test
+    void updatesAStoredBooksReadingStatus() throws Exception {
+        AuthSession owner = signupAndLogin("update-reading-status@wakebook.kr");
+        Bookshelf defaultShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+        bookRepository.save(new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                "https://example.com/cover.jpg"
+        ));
+        String addResponse = mockMvc.perform(
+                        post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                                .contextPath("/api")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + owner.accessToken()
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "isbn": "9788960867450",
+                                          "status": "WISH"
+                                        }
+                                        """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Number bookId = JsonPath.read(addResponse, "$.data.id");
+
+        mockMvc.perform(patch(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                defaultShelf.getId(),
+                                bookId.longValue()
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "READING"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("읽기 상태가 변경되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(bookId.longValue()))
+                .andExpect(jsonPath("$.data.isbn").value("9788960867450"))
+                .andExpect(jsonPath("$.data.title")
+                        .value("관계에도 연습이 필요합니다"))
+                .andExpect(jsonPath("$.data.status").value("READING"))
+                .andExpect(jsonPath("$.data.cover")
+                        .value("https://example.com/cover.jpg"));
+
+        assertThat(bookshelfBookRepository.findById(bookId.longValue())
+                .orElseThrow()
+                .getStatus()).isEqualTo(ReadingStatus.READING);
+    }
+
+    @Test
+    void hidesOtherUsersShelvesAndRejectsMismatchedBookIds() throws Exception {
+        AuthSession owner = signupAndLogin("status-owner@wakebook.kr");
+        AuthSession other = signupAndLogin("status-other@wakebook.kr");
+        Bookshelf ownerShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+        Bookshelf otherShelf = bookshelfRepository
+                .findAllWithBooksByUserId(other.userId())
+                .getFirst();
+
+        mockMvc.perform(patch(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                ownerShelf.getId(),
+                                999999L
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_004"))
+                .andExpect(jsonPath("$.message")
+                        .value("책장에 저장된 도서를 찾을 수 없습니다."));
+
+        mockMvc.perform(patch(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                otherShelf.getId(),
+                                999999L
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_001"));
+    }
+
+    @Test
+    void validatesReadingStatusUpdatesAndRequiresAuthentication() throws Exception {
+        AuthSession owner = signupAndLogin("invalid-reading-status@wakebook.kr");
+        Bookshelf defaultShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+
+        mockMvc.perform(patch(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                defaultShelf.getId(),
+                                1L
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message").value("읽기 상태를 선택해 주세요."));
+
+        mockMvc.perform(patch(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                defaultShelf.getId(),
+                                1L
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "PAUSED"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"));
+
+        mockMvc.perform(patch(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                defaultShelf.getId(),
+                                1L
+                        )
+                        .contextPath("/api")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "READING"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"));
+    }
+
+    @Test
     void updatesAndDeletesAnOwnedCustomCollection() throws Exception {
         AuthSession owner = signupAndLogin("manage-collection@wakebook.kr");
         long collectionId = createCollection(

@@ -9,6 +9,7 @@ import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
 import com.wakebook.bookshelf.dto.UpdateBookshelfRequest;
 import com.wakebook.bookshelf.dto.UpdateBookshelfResponse;
+import com.wakebook.bookshelf.dto.UpdateReadingStatusRequest;
 import com.wakebook.bookshelf.service.BookshelfService;
 import com.wakebook.common.response.ApiResponse;
 import org.junit.jupiter.api.Test;
@@ -106,6 +107,33 @@ class BookshelfControllerTest {
         assertThat(response.getBody().message()).isEqualTo("책장에 도서가 저장되었습니다.");
         assertThat(response.getBody().data()).isEqualTo(saved);
         verify(bookshelfService).addBook("12", 1L, request);
+    }
+
+    @Test
+    void updatesReadingStatusForTheAuthenticatedJwtSubject() {
+        BookshelfService bookshelfService = mock(BookshelfService.class);
+        BookshelfController controller = new BookshelfController(bookshelfService);
+        UpdateReadingStatusRequest request =
+                new UpdateReadingStatusRequest(ReadingStatus.READING);
+        BookshelfBookResponse updated = new BookshelfBookResponse(
+                101L,
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                ReadingStatus.READING,
+                "https://example.com/cover.jpg"
+        );
+        when(bookshelfService.updateReadingStatus("12", 1L, 101L, request))
+                .thenReturn(updated);
+
+        ResponseEntity<ApiResponse<BookshelfBookResponse>> response =
+                controller.updateReadingStatus(jwt("12"), 1L, 101L, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isTrue();
+        assertThat(response.getBody().message()).isEqualTo("읽기 상태가 변경되었습니다.");
+        assertThat(response.getBody().data()).isEqualTo(updated);
+        verify(bookshelfService).updateReadingStatus("12", 1L, 101L, request);
     }
 
     @Test
