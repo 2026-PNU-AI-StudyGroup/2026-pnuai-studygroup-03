@@ -605,6 +605,124 @@ class BookshelfIntegrationTest {
     }
 
     @Test
+    void deletesAStoredBookButKeepsTheSharedBookData() throws Exception {
+        AuthSession owner = signupAndLogin("delete-saved-book@wakebook.kr");
+        Bookshelf defaultShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+        bookRepository.save(new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                "https://example.com/cover.jpg"
+        ));
+        String addResponse = mockMvc.perform(
+                        post("/api/bookshelves/{shelfId}/books", defaultShelf.getId())
+                                .contextPath("/api")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + owner.accessToken()
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "isbn": "9788960867450",
+                                          "status": "WISH"
+                                        }
+                                        """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Number bookId = JsonPath.read(addResponse, "$.data.id");
+
+        mockMvc.perform(delete(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                defaultShelf.getId(),
+                                bookId.longValue()
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("책장에서 도서가 삭제되었습니다."))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        assertThat(bookshelfBookRepository.findById(bookId.longValue())).isEmpty();
+        assertThat(bookRepository.existsById("9788960867450")).isTrue();
+
+        mockMvc.perform(get("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].bookCount").value(0))
+                .andExpect(jsonPath("$.data[0].books").isEmpty());
+    }
+
+    @Test
+    void rejectsDeletingFromAnotherUsersShelfOrWithAMismatchedBookId()
+            throws Exception {
+        AuthSession owner = signupAndLogin("delete-owner@wakebook.kr");
+        AuthSession other = signupAndLogin("delete-other@wakebook.kr");
+        Bookshelf ownerShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+        bookRepository.save(new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                null
+        ));
+        String addResponse = mockMvc.perform(
+                        post("/api/bookshelves/{shelfId}/books", ownerShelf.getId())
+                                .contextPath("/api")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + owner.accessToken()
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "isbn": "9788960867450",
+                                          "status": "WISH"
+                                        }
+                                        """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Number bookId = JsonPath.read(addResponse, "$.data.id");
+
+        mockMvc.perform(delete(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                ownerShelf.getId(),
+                                999999L
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_004"));
+
+        mockMvc.perform(delete(
+                                "/api/bookshelves/{shelfId}/books/{bookId}",
+                                ownerShelf.getId(),
+                                bookId.longValue()
+                        )
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + other.accessToken()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_001"));
+
+        assertThat(bookshelfBookRepository.findById(bookId.longValue())).isPresent();
+    }
+
+    @Test
+    void deletingABookRequiresAuthentication() throws Exception {
+        mockMvc.perform(delete("/api/bookshelves/{shelfId}/books/{bookId}", 1L, 1L)
+                        .contextPath("/api"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001"));
+    }
+
+    @Test
     void updatesAndDeletesAnOwnedCustomCollection() throws Exception {
         AuthSession owner = signupAndLogin("manage-collection@wakebook.kr");
         long collectionId = createCollection(

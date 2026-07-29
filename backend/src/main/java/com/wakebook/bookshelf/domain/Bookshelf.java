@@ -83,6 +83,10 @@ public class Bookshelf {
         return bookshelfBook;
     }
 
+    public void removeBook(BookshelfBook bookshelfBook) {
+        books.remove(bookshelfBook);
+    }
+
     public void update(String name, String description) {
         this.name = name;
         this.description = description;

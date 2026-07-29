@@ -137,6 +137,22 @@ class BookshelfControllerTest {
     }
 
     @Test
+    void deletesABookForTheAuthenticatedJwtSubject() {
+        BookshelfService bookshelfService = mock(BookshelfService.class);
+        BookshelfController controller = new BookshelfController(bookshelfService);
+
+        ResponseEntity<ApiResponse<Void>> response =
+                controller.deleteBook(jwt("12"), 1L, 101L);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isTrue();
+        assertThat(response.getBody().message()).isEqualTo("책장에서 도서가 삭제되었습니다.");
+        assertThat(response.getBody().data()).isNull();
+        verify(bookshelfService).deleteBook("12", 1L, 101L);
+    }
+
+    @Test
     void updatesACollectionForTheAuthenticatedJwtSubject() {
         BookshelfService bookshelfService = mock(BookshelfService.class);
         BookshelfController controller = new BookshelfController(bookshelfService);
