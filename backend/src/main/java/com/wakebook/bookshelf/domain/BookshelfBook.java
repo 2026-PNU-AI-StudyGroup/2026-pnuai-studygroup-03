@@ -60,6 +60,11 @@ public class BookshelfBook {
         this.updatedAt = now;
     }
 
+    public void updateStatus(ReadingStatus status) {
+        this.status = status;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public Long getId() {
         return id;
     }

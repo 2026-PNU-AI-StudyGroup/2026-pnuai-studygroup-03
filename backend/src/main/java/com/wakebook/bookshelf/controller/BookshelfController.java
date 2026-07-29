@@ -7,6 +7,7 @@ import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
 import com.wakebook.bookshelf.dto.UpdateBookshelfRequest;
 import com.wakebook.bookshelf.dto.UpdateBookshelfResponse;
+import com.wakebook.bookshelf.dto.UpdateReadingStatusRequest;
 import com.wakebook.bookshelf.service.BookshelfService;
 import com.wakebook.common.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -64,6 +65,24 @@ public class BookshelfController {
                 bookshelfService.addBook(jwt.getSubject(), shelfId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("책장에 도서가 저장되었습니다.", response));
+    }
+
+    @PatchMapping("/{shelfId}/books/{bookId}")
+    public ResponseEntity<ApiResponse<BookshelfBookResponse>> updateReadingStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long shelfId,
+            @PathVariable Long bookId,
+            @Valid @RequestBody UpdateReadingStatusRequest request
+    ) {
+        BookshelfBookResponse response = bookshelfService.updateReadingStatus(
+                jwt.getSubject(),
+                shelfId,
+                bookId,
+                request
+        );
+        return ResponseEntity.ok(
+                ApiResponse.success("읽기 상태가 변경되었습니다.", response)
+        );
     }
 
     @PatchMapping("/{shelfId}")

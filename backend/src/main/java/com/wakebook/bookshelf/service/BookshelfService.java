@@ -3,6 +3,7 @@ package com.wakebook.bookshelf.service;
 import com.wakebook.book.domain.Book;
 import com.wakebook.book.repository.BookRepository;
 import com.wakebook.bookshelf.domain.Bookshelf;
+import com.wakebook.bookshelf.domain.BookshelfBook;
 import com.wakebook.bookshelf.domain.BookshelfType;
 import com.wakebook.bookshelf.dto.AddBookshelfBookRequest;
 import com.wakebook.bookshelf.dto.BookshelfBookResponse;
@@ -11,6 +12,7 @@ import com.wakebook.bookshelf.dto.CreateBookshelfRequest;
 import com.wakebook.bookshelf.dto.CreateBookshelfResponse;
 import com.wakebook.bookshelf.dto.UpdateBookshelfRequest;
 import com.wakebook.bookshelf.dto.UpdateBookshelfResponse;
+import com.wakebook.bookshelf.dto.UpdateReadingStatusRequest;
 import com.wakebook.bookshelf.repository.BookshelfBookRepository;
 import com.wakebook.bookshelf.repository.BookshelfRepository;
 import com.wakebook.common.ApiException;
@@ -107,6 +109,20 @@ public class BookshelfService {
     }
 
     @Transactional
+    public BookshelfBookResponse updateReadingStatus(
+            String authenticatedUserId,
+            Long shelfId,
+            Long bookId,
+            UpdateReadingStatusRequest request
+    ) {
+        Long userId = requireAuthenticatedUserId(authenticatedUserId);
+        Bookshelf bookshelf = findOwnedBookshelf(shelfId, userId);
+        BookshelfBook bookshelfBook = findBookshelfBook(bookId, bookshelf.getId());
+        bookshelfBook.updateStatus(request.status());
+        return BookshelfBookResponse.from(bookshelfBook);
+    }
+
+    @Transactional
     public UpdateBookshelfResponse updateBookshelf(
             String authenticatedUserId,
             Long shelfId,
@@ -179,6 +195,15 @@ public class BookshelfService {
                         "도서를 찾을 수 없습니다."
                 ));
         return bookRepository.save(new Book(isbn, detail.title(), detail.cover()));
+    }
+
+    private BookshelfBook findBookshelfBook(Long bookId, Long shelfId) {
+        return bookshelfBookRepository.findByIdAndBookshelf_Id(bookId, shelfId)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "BOOKSHELF_004",
+                        "책장에 저장된 도서를 찾을 수 없습니다."
+                ));
     }
 
     private static Long parseUserId(String authenticatedUserId) {
