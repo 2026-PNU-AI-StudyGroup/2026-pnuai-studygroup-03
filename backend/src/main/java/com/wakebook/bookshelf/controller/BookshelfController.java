@@ -85,6 +85,18 @@ public class BookshelfController {
         );
     }
 
+    @DeleteMapping("/{shelfId}/books/{bookId}")
+    public ResponseEntity<ApiResponse<Void>> deleteBook(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long shelfId,
+            @PathVariable Long bookId
+    ) {
+        bookshelfService.deleteBook(jwt.getSubject(), shelfId, bookId);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>success("책장에서 도서가 삭제되었습니다.", null)
+        );
+    }
+
     @PatchMapping("/{shelfId}")
     public ResponseEntity<ApiResponse<UpdateBookshelfResponse>> updateBookshelf(
             @AuthenticationPrincipal Jwt jwt,

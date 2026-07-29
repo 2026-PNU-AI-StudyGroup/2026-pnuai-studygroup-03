@@ -123,6 +123,19 @@ public class BookshelfService {
     }
 
     @Transactional
+    public void deleteBook(
+            String authenticatedUserId,
+            Long shelfId,
+            Long bookId
+    ) {
+        Long userId = requireAuthenticatedUserId(authenticatedUserId);
+        Bookshelf bookshelf = findOwnedBookshelf(shelfId, userId);
+        BookshelfBook bookshelfBook = findBookshelfBook(bookId, bookshelf.getId());
+        bookshelf.removeBook(bookshelfBook);
+        bookshelfBookRepository.delete(bookshelfBook);
+    }
+
+    @Transactional
     public UpdateBookshelfResponse updateBookshelf(
             String authenticatedUserId,
             Long shelfId,

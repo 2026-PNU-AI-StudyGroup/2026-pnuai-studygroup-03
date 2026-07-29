@@ -431,6 +431,52 @@ class BookshelfServiceTest {
     }
 
     @Test
+    void deletesAnOwnedBookshelfBookWithoutDeletingTheBook() {
+        User user = user(12L);
+        Bookshelf defaultShelf = Bookshelf.createDefault(user);
+        ReflectionTestUtils.setField(defaultShelf, "id", 1L);
+        Book book = new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                null
+        );
+        BookshelfBook entry = defaultShelf.addBook(book, ReadingStatus.WISH);
+        ReflectionTestUtils.setField(entry, "id", 101L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(1L, 12L))
+                .thenReturn(Optional.of(defaultShelf));
+        when(bookshelfBookRepository.findByIdAndBookshelf_Id(101L, 1L))
+                .thenReturn(Optional.of(entry));
+
+        bookshelfService.deleteBook("12", 1L, 101L);
+
+        assertThat(defaultShelf.getBooks()).isEmpty();
+        verify(bookshelfBookRepository).delete(entry);
+        verifyNoInteractions(bookRepository);
+    }
+
+    @Test
+    void doesNotDeleteABookshelfBookThatIsNotInTheShelf() {
+        User user = user(12L);
+        Bookshelf defaultShelf = Bookshelf.createDefault(user);
+        ReflectionTestUtils.setField(defaultShelf, "id", 1L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(bookshelfRepository.findByIdAndUser_Id(1L, 12L))
+                .thenReturn(Optional.of(defaultShelf));
+        when(bookshelfBookRepository.findByIdAndBookshelf_Id(999L, 1L))
+                .thenReturn(Optional.empty());
+
+        ApiException exception = catchThrowableOfType(
+                ApiException.class,
+                () -> bookshelfService.deleteBook("12", 1L, 999L)
+        );
+
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getCode()).isEqualTo("BOOKSHELF_004");
+        verify(bookshelfBookRepository, never()).delete(any());
+    }
+
+    @Test
     void updatesAnOwnedCustomCollection() {
         User user = user(12L);
         Bookshelf custom = Bookshelf.createCustom(user, "기존 이름", "기존 설명");
