@@ -34,7 +34,7 @@
 
 ## 2. 인증 API
 
-### 2.1 회원가입
+### 2.1 회원가입 -> 완료
 
 `POST /auth/signup`
 
@@ -68,7 +68,7 @@
 { "success": true, "message": "회원가입이 완료되었습니다.", "data": { "id": 12, "role": "LIBRARIAN", "name": "김도서" } }
 ```
 
-### 2.2 로그인
+### 2.2 로그인 -> 완료
 
 `POST /auth/login`
 
@@ -87,7 +87,7 @@
 }
 ```
 
-### 2.3 내 정보 조회
+### 2.3 내 정보 조회 -> 완료
 
 `GET /auth/me` · 인증 필요
 
@@ -97,7 +97,7 @@
 
 ## 3. 도서 탐색 API
 
-### 3.1 인기 도서 조회
+### 3.1 인기 도서 조회 -> 완료
 
 `GET /books/popular?page=1&size=12&category=문학&gender=ALL&age=20`
 
@@ -119,7 +119,7 @@
 }
 ```
 
-### 3.2 도서 검색
+### 3.2 도서 검색 -> 완료
 
 `GET /books/search?keyword=심리&page=1&size=12`
 
@@ -135,7 +135,7 @@
 }
 ```
 
-### 3.3 도서 상세 조회
+### 3.3 도서 상세 조회 -> 완료
 
 `GET /books/{isbn}?region=21`
 

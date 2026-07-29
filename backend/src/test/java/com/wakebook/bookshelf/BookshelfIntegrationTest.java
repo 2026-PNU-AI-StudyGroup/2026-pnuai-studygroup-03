@@ -28,7 +28,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -291,6 +293,163 @@ class BookshelfIntegrationTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void updatesAndDeletesAnOwnedCustomCollection() throws Exception {
+        AuthSession owner = signupAndLogin("manage-collection@wakebook.kr");
+        long collectionId = createCollection(
+                owner,
+                "기존 컬렉션",
+                "기존 설명"
+        );
+        Book book = bookRepository.save(new Book(
+                "9788960867450",
+                "관계에도 연습이 필요합니다",
+                "https://example.com/cover.jpg"
+        ));
+        Bookshelf custom = bookshelfRepository.findById(collectionId).orElseThrow();
+        custom.addBook(book, ReadingStatus.WISH);
+        bookshelfRepository.saveAndFlush(custom);
+
+        mockMvc.perform(patch("/api/bookshelves/{bookshelfId}", collectionId)
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "  천천히 읽을 책  ",
+                                  "description": "  이번 달에 읽을 책  "
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("컬렉션이 수정되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(collectionId))
+                .andExpect(jsonPath("$.data.name").value("천천히 읽을 책"))
+                .andExpect(jsonPath("$.data.description").value("이번 달에 읽을 책"))
+                .andExpect(jsonPath("$.data.type").value("CUSTOM"));
+
+        Bookshelf updated = bookshelfRepository.findById(collectionId).orElseThrow();
+        assertThat(updated.getName()).isEqualTo("천천히 읽을 책");
+        assertThat(updated.getDescription()).isEqualTo("이번 달에 읽을 책");
+
+        mockMvc.perform(delete("/api/bookshelves/{bookshelfId}", collectionId)
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("컬렉션이 삭제되었습니다."))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        assertThat(bookshelfRepository.findById(collectionId)).isEmpty();
+        assertThat(bookRepository.existsById("9788960867450")).isTrue();
+    }
+
+    @Test
+    void preventsManagingTheDefaultBookshelf() throws Exception {
+        AuthSession owner = signupAndLogin("protect-default@wakebook.kr");
+        Bookshelf defaultShelf = bookshelfRepository
+                .findAllWithBooksByUserId(owner.userId())
+                .getFirst();
+
+        mockMvc.perform(patch("/api/bookshelves/{bookshelfId}", defaultShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "바꾸려는 이름",
+                                  "description": "바꾸려는 설명"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_002"))
+                .andExpect(jsonPath("$.message")
+                        .value("기본 책장은 수정하거나 삭제할 수 없습니다."));
+
+        mockMvc.perform(delete("/api/bookshelves/{bookshelfId}", defaultShelf.getId())
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_002"))
+                .andExpect(jsonPath("$.message")
+                        .value("기본 책장은 수정하거나 삭제할 수 없습니다."));
+
+        assertThat(bookshelfRepository.findById(defaultShelf.getId())).isPresent();
+    }
+
+    @Test
+    void hidesAnotherUsersCollectionFromUpdateAndDelete() throws Exception {
+        AuthSession owner = signupAndLogin("collection-real-owner@wakebook.kr");
+        AuthSession other = signupAndLogin("collection-intruder@wakebook.kr");
+        long collectionId = createCollection(owner, "소유자의 컬렉션", null);
+
+        mockMvc.perform(patch("/api/bookshelves/{bookshelfId}", collectionId)
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + other.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "가져갈 컬렉션"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_001"))
+                .andExpect(jsonPath("$.message").value("컬렉션을 찾을 수 없습니다."));
+
+        mockMvc.perform(delete("/api/bookshelves/{bookshelfId}", collectionId)
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + other.accessToken()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("BOOKSHELF_001"))
+                .andExpect(jsonPath("$.message").value("컬렉션을 찾을 수 없습니다."));
+
+        assertThat(bookshelfRepository.findById(collectionId)).isPresent();
+    }
+
+    @Test
+    void validatesCollectionUpdateFields() throws Exception {
+        AuthSession owner = signupAndLogin("invalid-update@wakebook.kr");
+        long collectionId = createCollection(owner, "유효한 이름", "유효한 설명");
+
+        mockMvc.perform(patch("/api/bookshelves/{bookshelfId}", collectionId)
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "   ",
+                                  "description": "설명"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message").value("컬렉션 이름을 입력해 주세요."));
+
+        mockMvc.perform(patch("/api/bookshelves/{bookshelfId}", collectionId)
+                        .contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + owner.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "유효한 이름",
+                                  "description": "%s"
+                                }
+                                """.formatted("가".repeat(501))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_001"))
+                .andExpect(jsonPath("$.message")
+                        .value("컬렉션 설명은 500자 이하여야 합니다."));
+
+        Bookshelf unchanged = bookshelfRepository.findById(collectionId).orElseThrow();
+        assertThat(unchanged.getName()).isEqualTo("유효한 이름");
+        assertThat(unchanged.getDescription()).isEqualTo("유효한 설명");
+    }
+
     private AuthSession signupAndLogin(String email) throws Exception {
         String signupResponse = mockMvc.perform(post("/api/auth/signup")
                         .contextPath("/api")
@@ -324,6 +483,35 @@ class BookshelfIntegrationTest {
                 .getContentAsString();
         String accessToken = JsonPath.read(loginResponse, "$.data.accessToken");
         return new AuthSession(userId.longValue(), accessToken);
+    }
+
+    private long createCollection(
+            AuthSession session,
+            String name,
+            String description
+    ) throws Exception {
+        String descriptionJson = description == null
+                ? "null"
+                : "\"" + description + "\"";
+        String response = mockMvc.perform(post("/api/bookshelves")
+                        .contextPath("/api")
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                "Bearer " + session.accessToken()
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "%s",
+                                  "description": %s
+                                }
+                                """.formatted(name, descriptionJson)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Number collectionId = JsonPath.read(response, "$.data.id");
+        return collectionId.longValue();
     }
 
     private String createToken(
