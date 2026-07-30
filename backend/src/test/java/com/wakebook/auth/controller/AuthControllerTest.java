@@ -67,6 +67,7 @@ class AuthControllerTest {
                                   "password": "Password!123",
                                   "nickname": "책지기",
                                   "libraryName": "부산대학교 도서관",
+                                  "libraryCode": "121018",
                                   "department": "자료운영팀"
                                 }
                                 """))
@@ -94,7 +95,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("VALIDATION_001"))
                 .andExpect(jsonPath("$.message")
-                        .value("사서는 소속 도서관과 담당 부서를 입력해야 합니다."))
+                        .value("사서는 소속 도서관, 도서관 코드, 담당 부서를 입력해야 합니다."))
                 .andExpect(jsonPath("$.data").doesNotExist());
 
         verifyNoInteractions(authService);
@@ -147,7 +148,8 @@ class AuthControllerTest {
                 12L,
                 "김도서",
                 UserRole.LIBRARIAN,
-                "부산대학교 도서관"
+                "부산대학교 도서관",
+                "121018"
         );
         when(authService.login(any(LoginRequest.class)))
                 .thenReturn(new LoginResponse("access-token", user));
@@ -167,7 +169,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.user.id").value(12))
                 .andExpect(jsonPath("$.data.user.name").value("김도서"))
                 .andExpect(jsonPath("$.data.user.role").value("LIBRARIAN"))
-                .andExpect(jsonPath("$.data.user.libraryName").value("부산대학교 도서관"));
+                .andExpect(jsonPath("$.data.user.libraryName").value("부산대학교 도서관"))
+                .andExpect(jsonPath("$.data.user.libraryCode").value("121018"));
     }
 
     @Test
@@ -216,7 +219,8 @@ class AuthControllerTest {
                 "김도서",
                 "책지기",
                 UserRole.LIBRARIAN,
-                "부산대학교 도서관"
+                "부산대학교 도서관",
+                "121018"
         );
         when(authService.getMyInfo("12")).thenReturn(myInfo);
         Jwt jwt = Jwt.withTokenValue("access-token")

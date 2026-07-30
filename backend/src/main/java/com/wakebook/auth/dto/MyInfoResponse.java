@@ -7,6 +7,7 @@ public record MyInfoResponse(
         String name,
         String nickname,
         UserRole role,
-        String libraryName
+        String libraryName,
+        String libraryCode
 ) {
 }

@@ -37,6 +37,7 @@ class AuthLoginIntegrationTest {
                                   "password": "Password!123",
                                   "nickname": "책지기",
                                   "libraryName": "부산대학교 도서관",
+                                  "libraryCode": "121018",
                                   "department": "자료운영팀"
                                 }
                                 """))
@@ -59,7 +60,8 @@ class AuthLoginIntegrationTest {
                 .andExpect(jsonPath("$.data.user.id").isNumber())
                 .andExpect(jsonPath("$.data.user.name").value("김도서"))
                 .andExpect(jsonPath("$.data.user.role").value("LIBRARIAN"))
-                .andExpect(jsonPath("$.data.user.libraryName").value("부산대학교 도서관"));
+                .andExpect(jsonPath("$.data.user.libraryName").value("부산대학교 도서관"))
+                .andExpect(jsonPath("$.data.user.libraryCode").value("121018"));
     }
 
     @Test

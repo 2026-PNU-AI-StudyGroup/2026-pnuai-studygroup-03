@@ -57,6 +57,7 @@ class AuthServiceTest {
                 "Password!123",
                 " 책지기 ",
                 " 부산대학교 도서관 ",
+                " 121018 ",
                 " 자료운영팀 "
         );
         when(userRepository.existsByEmailIgnoreCase("librarian@wakebook.kr")).thenReturn(false);
@@ -72,6 +73,7 @@ class AuthServiceTest {
         assertThat(savedUser.getEmail()).isEqualTo("librarian@wakebook.kr");
         assertThat(savedUser.getPasswordHash()).isEqualTo("encoded-password");
         assertThat(savedUser.getLibraryName()).isEqualTo("부산대학교 도서관");
+        assertThat(savedUser.getLibraryCode()).isEqualTo("121018");
         assertThat(savedUser.getDepartment()).isEqualTo("자료운영팀");
         assertThat(response.role()).isEqualTo(UserRole.LIBRARIAN);
         assertThat(response.name()).isEqualTo("김도서");
@@ -86,6 +88,7 @@ class AuthServiceTest {
                 "김독자",
                 "reader@wakebook.kr",
                 "Password!123",
+                null,
                 null,
                 null,
                 null
@@ -111,6 +114,7 @@ class AuthServiceTest {
                 "Password!123",
                 null,
                 "잘못 전달된 도서관",
+                "잘못 전달된 코드",
                 "잘못 전달된 부서"
         );
         when(userRepository.existsByEmailIgnoreCase("reader@wakebook.kr")).thenReturn(false);
@@ -122,6 +126,7 @@ class AuthServiceTest {
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getLibraryName()).isNull();
+        assertThat(userCaptor.getValue().getLibraryCode()).isNull();
         assertThat(userCaptor.getValue().getDepartment()).isNull();
     }
 
@@ -132,6 +137,7 @@ class AuthServiceTest {
                 "김독자",
                 "reader@wakebook.kr",
                 "Password!123",
+                null,
                 null,
                 null,
                 null
@@ -160,6 +166,7 @@ class AuthServiceTest {
         assertThat(response.user().name()).isEqualTo("김도서");
         assertThat(response.user().role()).isEqualTo(UserRole.LIBRARIAN);
         assertThat(response.user().libraryName()).isEqualTo("부산대학교 도서관");
+        assertThat(response.user().libraryCode()).isEqualTo("121018");
         verify(jwtTokenProvider).createAccessToken(user);
     }
 
@@ -224,6 +231,7 @@ class AuthServiceTest {
         assertThat(response.nickname()).isEqualTo("책지기");
         assertThat(response.role()).isEqualTo(UserRole.LIBRARIAN);
         assertThat(response.libraryName()).isEqualTo("부산대학교 도서관");
+        assertThat(response.libraryCode()).isEqualTo("121018");
     }
 
     @Test
@@ -264,6 +272,7 @@ class AuthServiceTest {
                 "encoded-password",
                 "책지기",
                 "부산대학교 도서관",
+                "121018",
                 "자료운영팀"
         );
         ReflectionTestUtils.setField(user, "id", 12L);

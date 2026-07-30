@@ -577,6 +577,7 @@ class BookshelfServiceTest {
                 "encoded-password",
                 null,
                 null,
+                null,
                 null
         );
         ReflectionTestUtils.setField(user, "id", id);
