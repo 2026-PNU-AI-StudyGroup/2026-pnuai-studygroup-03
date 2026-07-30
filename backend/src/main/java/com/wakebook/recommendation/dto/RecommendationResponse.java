@@ -11,7 +11,6 @@ public record RecommendationResponse(
     int keywordRelevance,
     int purposeMatch,
     int moodMatch,
-    int timeMatch,
     int discoveryValue,
     String reason,
     List<String> keywords
