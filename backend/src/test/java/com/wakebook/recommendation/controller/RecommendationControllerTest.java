@@ -43,14 +43,14 @@ class RecommendationControllerTest {
     void 추천_요청은_서비스_결과를_그대로_반환한다() throws Exception {
         when(recommendationService.recommend(any())).thenReturn(List.of(new RecommendationResponse(
                 "9788960867450", "관계에도 연습이 필요합니다", "박상미", "https://example.com/cover.jpg",
-                93, 95, 92, 90, 88, 89, "추천 이유", List.of("인간관계", "심리")
+                93, 95, 92, 90, 89, "추천 이유", List.of("인간관계", "심리")
         )));
 
         mockMvc.perform(post("/recommendations")
                         .contentType("application/json")
                         .content("""
                             {"isbn": "9788996991342", "libraryCode": "121018", "keywords": ["인간관계", "심리"],
-                             "purpose": "마음의 위로", "mood": "따뜻한", "readingTime": "MEDIUM"}
+                             "purpose": "마음의 위로", "mood": "따뜻한"}
                             """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].isbn").value("9788960867450"))

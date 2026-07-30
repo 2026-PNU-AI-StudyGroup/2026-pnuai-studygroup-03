@@ -81,7 +81,7 @@ public class RecommendationExploreService {
         String reason = aiScore != null ? aiScore.reason() : book.getReason();
 
         int discoveryValue = RecommendationScorer.discoveryValue(book.getLoanCount(), minLoanCount, maxLoanCount);
-        int score = RecommendationScorer.finalScore(relevance, relevance, relevance, relevance, book.getQualityScore(), discoveryValue);
+        int score = RecommendationScorer.finalScore(relevance, relevance, relevance, book.getQualityScore(), discoveryValue);
 
         return new ExploreResponse(
             book.getIsbn(), book.getTitle(), book.getAuthor(), book.getCover(),

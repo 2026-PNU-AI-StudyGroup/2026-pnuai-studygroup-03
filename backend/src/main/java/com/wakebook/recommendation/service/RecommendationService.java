@@ -10,7 +10,6 @@ import com.wakebook.recommendation.dto.RecommendationRequest;
 import com.wakebook.recommendation.dto.RecommendationResponse;
 import com.wakebook.recommendation.support.ReadingMood;
 import com.wakebook.recommendation.support.ReadingPurpose;
-import com.wakebook.recommendation.support.ReadingTime;
 import com.wakebook.recommendation.support.RecommendationScorer;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -38,7 +37,6 @@ public class RecommendationService {
         String libraryCode = validateLibraryCode(request.libraryCode());
         ReadingPurpose purpose = ReadingPurpose.fromLabel(request.purpose());
         ReadingMood mood = ReadingMood.fromLabel(request.mood());
-        ReadingTime readingTime = ReadingTime.fromValue(request.readingTime());
 
         List<HiddenBook> pool = hiddenBookRepository.findAllByLibraryCode(libraryCode);
         if (pool.isEmpty()) {
@@ -46,7 +44,7 @@ public class RecommendationService {
         }
 
         String systemPrompt = buildSystemPrompt();
-        String userPrompt = buildUserPrompt(request.keywords(), purpose, mood, readingTime, pool);
+        String userPrompt = buildUserPrompt(request.keywords(), purpose, mood, pool);
         String content = openAiClient.complete(systemPrompt, userPrompt);
         Map<String, AiScorePayload> scoresByIsbn = parseScores(content);
 
@@ -63,17 +61,16 @@ public class RecommendationService {
         int keywordRelevance = aiScore != null ? clamp(aiScore.keywordRelevance()) : 0;
         int purposeMatch = aiScore != null ? clamp(aiScore.purposeMatch()) : 0;
         int moodMatch = aiScore != null ? clamp(aiScore.moodMatch()) : 0;
-        int timeMatch = aiScore != null ? clamp(aiScore.timeMatch()) : 0;
         String reason = aiScore != null ? aiScore.reason() : book.getReason();
 
         int discoveryValue = RecommendationScorer.discoveryValue(book.getLoanCount(), minLoanCount, maxLoanCount);
         int score = RecommendationScorer.finalScore(
-            keywordRelevance, purposeMatch, moodMatch, timeMatch, book.getQualityScore(), discoveryValue
+            keywordRelevance, purposeMatch, moodMatch, book.getQualityScore(), discoveryValue
         );
 
         return new RecommendationResponse(
             book.getIsbn(), book.getTitle(), book.getAuthor(), book.getCover(),
-            score, keywordRelevance, purposeMatch, moodMatch, timeMatch, discoveryValue,
+            score, keywordRelevance, purposeMatch, moodMatch, discoveryValue,
             reason, book.getKeywords()
         );
     }
@@ -91,21 +88,20 @@ public class RecommendationService {
 
     private String buildSystemPrompt() {
         return """
-            당신은 도서관 사서입니다. 후보 도서 목록과 사용자가 고른 키워드/목적/분위기/독서시간을 보고
-            각 후보 도서마다 keywordRelevance, purposeMatch, moodMatch, timeMatch(모두 0~100 정수)와
+            당신은 도서관 사서입니다. 후보 도서 목록과 사용자가 고른 키워드/목적/분위기를 보고
+            각 후보 도서마다 keywordRelevance, purposeMatch, moodMatch(모두 0~100 정수)와
             reason(한 문장 추천 이유)을 산정합니다. 반드시 다음 JSON 형식으로만 답하세요:
-            {"results": [{"isbn": "...", "keywordRelevance": 0, "purposeMatch": 0, "moodMatch": 0, "timeMatch": 0, "reason": "..."}]}
+            {"results": [{"isbn": "...", "keywordRelevance": 0, "purposeMatch": 0, "moodMatch": 0, "reason": "..."}]}
             """;
     }
 
     private String buildUserPrompt(
-        List<String> keywords, ReadingPurpose purpose, ReadingMood mood, ReadingTime readingTime, List<HiddenBook> pool
+        List<String> keywords, ReadingPurpose purpose, ReadingMood mood, List<HiddenBook> pool
     ) {
         StringBuilder builder = new StringBuilder();
         builder.append("사용자 선택 키워드: ").append(String.join(", ", keywords)).append('\n');
         builder.append("독서 목적: ").append(purpose.label()).append('\n');
         builder.append("원하는 분위기: ").append(mood.label()).append('\n');
-        builder.append("예상 독서 시간: ").append(readingTime.name()).append('\n');
         builder.append("후보 도서 목록:\n");
         for (HiddenBook book : pool) {
             builder.append("- isbn: ").append(book.getIsbn())
@@ -142,7 +138,6 @@ public class RecommendationService {
         @JsonProperty("keywordRelevance") Integer keywordRelevance,
         @JsonProperty("purposeMatch") Integer purposeMatch,
         @JsonProperty("moodMatch") Integer moodMatch,
-        @JsonProperty("timeMatch") Integer timeMatch,
         @JsonProperty("reason") String reason
     ) {
     }

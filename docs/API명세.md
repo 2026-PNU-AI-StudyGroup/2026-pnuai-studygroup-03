@@ -15,6 +15,7 @@
 - **6.1 `GET /librarian/dashboard`**, **6.2 `POST /librarian/curations/generate`(신규)**: 별도 파라미터 없이, 로그인한 사서의 `libraryCode`로 자기 도서관의 "잠자는 도서" 후보군(6.5로 업로드된 `hidden_books`)을 자동으로 찾습니다. `libraryCode`가 없는 사서 계정은 후보군이 빈 것으로 처리됩니다.
 - `exhibitionLoanRate`(전시 대출률)는 실제 대출 추적 데이터가 없어 현재 고정값(0)을 반환합니다. 중간보고서(2026-07-31) 이후 실데이터 연동 예정입니다.
 - **6.3/6.4 큐레이션 저장/조회/수정/삭제(신규)**: 사서가 만든 큐레이션을 저장·조회·수정·삭제합니다.
+- **4.2 `POST /recommendations`**: 불필요하다고 판단해 `readingTime` 필드를 제거했습니다. 응답의 `timeMatch`도 함께 제거되고, 그만큼의 가중치(0.10)는 `keywordRelevance`(0.35→0.45)로 흡수했습니다.
 
 ### 2026-07-29
 
@@ -214,7 +215,7 @@
 
 `POST /recommendations`
 
-선택 키워드, 독서 목적·분위기·시간을 반영해 잠자는 도서를 추천합니다.
+선택 키워드, 독서 목적·분위기를 반영해 잠자는 도서를 추천합니다.
 
 ```json
 {
@@ -222,8 +223,7 @@
   "libraryCode": "121018",
   "keywords": ["인간관계", "심리"],
   "purpose": "마음의 위로",
-  "mood": "따뜻한",
-  "readingTime": "MEDIUM"
+  "mood": "따뜻한"
 }
 ```
 
@@ -232,14 +232,13 @@
 | libraryCode | 도서관정보나루 도서관 코드 **(필수 — 변경됨, 2026-07-29)**. 이 도서관에 업로드된 후보군(6.5)만 대상으로 추천합니다. |
 | purpose | `마음의 위로`, `새로운 관점`, `실용적인 해결책`, `깊이 있는 사유` |
 | mood | `따뜻한`, `담백한`, `유쾌한`, `사색적인` |
-| readingTime | `SHORT`, `MEDIUM`, `LONG`, `SLOW` |
 
 ```json
 {
   "success": true,
   "data": [{
     "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "author": "박상미", "cover": "https://...",
-    "score": 93, "keywordRelevance": 95, "purposeMatch": 92, "moodMatch": 90, "timeMatch": 88, "discoveryValue": 89,
+    "score": 93, "keywordRelevance": 95, "purposeMatch": 92, "moodMatch": 90, "discoveryValue": 89,
     "reason": "나를 지키면서 타인과 건강하게 연결되는 구체적인 연습법을 만나 보세요.",
     "keywords": ["인간관계", "심리", "자존감"]
   }]

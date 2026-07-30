@@ -19,9 +19,6 @@ public record RecommendationRequest(
     String purpose,
 
     @NotBlank(message = "mood를 선택해 주세요.")
-    String mood,
-
-    @NotBlank(message = "readingTime을 선택해 주세요.")
-    String readingTime
+    String mood
 ) {
 }
