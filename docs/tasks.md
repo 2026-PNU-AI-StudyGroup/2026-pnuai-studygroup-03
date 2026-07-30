@@ -34,6 +34,16 @@
 - [ ] **"도서 정보 품질"/"잠자는 도서 발견 가치" 점수 산정 로직은 임시 휴리스틱**: `HiddenBookUploadService.calculateQualityScore`(publisher/publishedYear/cover/description 유무 기반)와 `RecommendationScorer.discoveryValue`(대출건수를 후보군 내 min-max로 정규화)는 실제 데이터 없이 만든 근사치다. 실사용 데이터가 쌓이면 가중치/기준 재조정 검토.
 - [ ] **CSV 컬럼명 의존성**: `HiddenBookCsvParser`는 정보나루 CSV의 정확한 한글 헤더(`도서명`, `저자`, `ISBN`, `대출건수`)로 값을 찾는다. 정보나루가 CSV 포맷이나 컬럼명을 바꾸면 파싱이 에러 없이 조용히 깨질 수 있음(해당 값이 비거나 0으로 들어감) — 업로드 응답의 `savedCount`가 평소보다 확 줄면 이걸 의심해볼 것.
 - [ ] **업로드 신뢰 모델 검증 필요**: 지금은 `LIBRARIAN` 권한만 있으면 어떤 `libraryCode`/`libraryName`으로도 업로드할 수 있다. 회원가입 때 입력하는 `User.libraryName`(자유 텍스트)과 실제 업로드 대상 도서관이 일치하는지 검증하지 않으므로, 실수나 악의적 사용으로 다른 도서관의 후보군이 덮어써질 수 있음 — 추후 사서-도서관 매핑 검증 로직 필요.
+      (2026-07-31 중간보고서 마감으로 MVP 우선 구현 중 — 이 검증은 후순위로 미룸)
+      (2026-07-30: `User.libraryCode`가 추가됐으므로, 이제 업로드 요청의 `libraryCode`를 로그인한 사서 본인의 `libraryCode`와 대조하는 검증을 추가할 수 있음 — 구현 자체는 계속 후순위.)
 - [ ] **대형 도서관 CSV 업로드 소요 시간**: 실제 부산광역시 금정도서관 CSV(약 30만 행)로 테스트해보니 업로드 1회에 5분 이상 걸림. `HiddenBookUploadService`가 대출건수 오름차순으로 정렬한 뒤 `candidatePoolSize`(30권)를 채울 때까지 후보를 하나씩 `srchDtlList`로 품질 검증하는데, 통과 못 하는 후보가 많으면(외국어 도서 등 메타데이터 부실) 시도 횟수 자체가 커진다. 트래픽이 늘면 "시도할 후보 수 자체에 상한"을 두거나 비동기 처리(업로드는 바로 202 응답, 처리는 백그라운드)로 개선 검토.
 - **2026-07-29 실제 업로드 E2E 검증 완료**: 부산광역시 금정도서관(libCode 121018) 실제 CSV로 업로드→3.4/3.5/4.1/4.2/4.3/4.4 전부 실제 정보나루·OpenAI API로 호출 확인함. 이 과정에서 `HiddenBook.keywords`가 `@ElementCollection` LAZY 상태라 `open-in-view=false` 환경에서 컨트롤러 응답 직렬화 시점에 `LazyInitializationException`이 나는 버그를 발견해 `FetchType.EAGER`로 수정함. 또한 `spring.servlet.multipart.max-file-size`/`max-request-size` 기본값(10MB)이 실제 CSV(약 49MB)보다 작아 업로드가 실패해서 200MB로 올림.
 - [ ] **`hidden-book.max-loan-count`(기본 2)/`hidden-book.candidate-pool-size`(기본 30) 기준값 재검토**: 실제 CSV 데이터 분포를 보고 조정 필요.
+
+## 6.1/6.2/6.3/6.4 사서 대시보드·큐레이션
+
+`User.libraryCode` 추가(회원가입 시 사서 필수 입력) + `curations`/`curation_books` 테이블로 구현 완료.
+(`LibrarianDashboardService.java`, `CurationGenerationService.java`, `CurationService.java`, 마이그레이션 `V202607300001`/`V202607300002`)
+
+- [ ] **`exhibitionLoanRate`는 고정값(0) 반환 중**: 전시된 큐레이션 도서의 실제 대출 데이터를 추적하는 기능이 없어서 계산 근거가 없음. 2026-07-31 중간보고서 제출 이후, 실제 대출 데이터 연동 방식을 설계해서 반영 필요.
+- [ ] **6.2 AI 큐레이션 생성의 후보군 = 사서 본인 `libraryCode`의 `hidden_books`뿐**: 일반 도서(정보나루 전체 장서) 중에서 고르는 게 아니라, 6.5로 업로드해둔 "잠자는 도서" 후보군 안에서만 고른다. 이 전제가 실제 사서들의 큐레이션 제작 방식과 맞는지(예: 전시에 이미 인기 있는 책도 섞고 싶을 수 있음) 사용자 테스트로 확인 필요.

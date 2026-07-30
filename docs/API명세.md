@@ -6,6 +6,16 @@
 
 ## 변경 이력
 
+### 2026-07-30
+
+사서의 소속 도서관을 자유입력 텍스트(`libraryName`)만으로는 `hidden_books`(도서관 코드로 구분)와 연결할 수 없어서, 회원가입에 `libraryCode`(사서 필수)를 추가했습니다. 이에 따라 아래 API의 **요청/응답 계약이 바뀌었습니다**.
+
+- **2.1 `POST /auth/signup`**: 사서 가입 시 `libraryCode`(도서관정보나루 도서관 코드) 필수 입력 추가.
+- **2.2 `POST /auth/login`**, **2.3 `GET /auth/me`**: 응답의 `user`/`data`에 `libraryCode` 필드 추가.
+- **6.1 `GET /librarian/dashboard`**, **6.2 `POST /librarian/curations/generate`(신규)**: 별도 파라미터 없이, 로그인한 사서의 `libraryCode`로 자기 도서관의 "잠자는 도서" 후보군(6.5로 업로드된 `hidden_books`)을 자동으로 찾습니다. `libraryCode`가 없는 사서 계정은 후보군이 빈 것으로 처리됩니다.
+- `exhibitionLoanRate`(전시 대출률)는 실제 대출 추적 데이터가 없어 현재 고정값(0)을 반환합니다. 중간보고서(2026-07-31) 이후 실데이터 연동 예정입니다.
+- **6.3/6.4 큐레이션 저장/조회/수정/삭제(신규)**: 사서가 만든 큐레이션을 저장·조회·수정·삭제합니다.
+
 ### 2026-07-29
 
 "잠자는 도서" 후보군(3.4/3.5/4.2/4.4가 추천하는 도서)이 **도서관별로 분리 관리**되도록 변경했습니다. 사서가 자기 도서관의 정보나루 "장서 대출목록" CSV를 직접 업로드하면, 그 도서관의 후보군만 즉시 갱신됩니다(다른 도서관 데이터는 영향 없음). 이에 따라 아래 API들의 **요청 계약이 바뀌었습니다** — 프론트 작업 시 참고해 주세요.
@@ -48,6 +58,7 @@
   "password": "Password!123",
   "nickname": "책지기",
   "libraryName": "부산대학교 도서관",
+  "libraryCode": "121018",
   "department": "자료운영팀"
 }
 ```
@@ -59,7 +70,8 @@
 | email | String | O | 로그인 이메일, 중복 불가 |
 | password | String | O | 비밀번호 |
 | nickname | String | X | 사용자 별칭 |
-| libraryName | String | 사서 | 소속 도서관 |
+| libraryName | String | 사서 | 소속 도서관(표시용) |
+| libraryCode | String | 사서 | 도서관정보나루 도서관 코드. 6.1/6.2가 이 값으로 자기 도서관의 후보군을 찾음(**추가됨, 2026-07-30**) |
 | department | String | 사서 | 담당 부서 |
 
 **201 Created**
@@ -82,7 +94,7 @@
   "message": "로그인되었습니다.",
   "data": {
     "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-    "user": { "id": 12, "name": "김도서", "role": "LIBRARIAN", "libraryName": "부산대학교 도서관" }
+    "user": { "id": 12, "name": "김도서", "role": "LIBRARIAN", "libraryName": "부산대학교 도서관", "libraryCode": "121018" }
   }
 }
 ```
@@ -92,7 +104,7 @@
 `GET /auth/me` · 인증 필요
 
 ```json
-{ "success": true, "data": { "id": 12, "name": "김도서", "nickname": "책지기", "role": "LIBRARIAN", "libraryName": "부산대학교 도서관" } }
+{ "success": true, "data": { "id": 12, "name": "김도서", "nickname": "책지기", "role": "LIBRARIAN", "libraryName": "부산대학교 도서관", "libraryCode": "121018" } }
 ```
 
 ## 3. 도서 탐색 API
@@ -337,9 +349,11 @@
 
 모든 API는 `LIBRARIAN` 권한이 필요합니다. 일반 사용자는 `403 FORBIDDEN`을 반환합니다.
 
-### 6.1 사서 대시보드
+### 6.1 사서 대시보드 -> 완료
 
 `GET /librarian/dashboard`
+
+로그인한 사서의 `libraryCode`로 자기 도서관의 `hidden_books` 후보군을 찾아 집계합니다(별도 파라미터 불필요). `libraryCode`가 없는 계정은 `hiddenBookCount: 0`, `popularKeywords: []`로 응답합니다. `exhibitionLoanRate`는 대출 추적 데이터가 없어 현재 고정값(0)을 반환합니다(추후 실데이터 연동 예정).
 
 ```json
 {
@@ -352,9 +366,11 @@
 }
 ```
 
-### 6.2 AI 큐레이션 초안 생성
+### 6.2 AI 큐레이션 초안 생성 -> 완료
 
 `POST /librarian/curations/generate`
+
+`topic`만 필수이며, 나머지는 선택 입력입니다. 로그인한 사서의 `libraryCode`에 해당하는 `hidden_books` 후보군(6.5로 업로드된 데이터) 중에서 골라 추천하며, 후보가 없으면 `404 BOOK_001`을 반환합니다. 이 응답은 초안일 뿐 저장되지 않으며, 마음에 들면 6.3으로 저장합니다.
 
 ```json
 {
@@ -362,6 +378,16 @@
   "excludedKeywords": ["취업"], "purpose": "전시 큐레이션"
 }
 ```
+
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|:---:|---|
+| topic | String | O | 큐레이션 주제 |
+| targetAge | String | X | 대상 연령대 |
+| mood | String | X | 원하는 분위기 |
+| category | String | X | 분야 |
+| bookCount | Number | X | 선정할 도서 수(기본값 5, 후보 수만큼 상한) |
+| excludedKeywords | String[] | X | 제외할 키워드 |
+| purpose | String | X | 큐레이션 목적 |
 
 ```json
 {
@@ -374,20 +400,35 @@
 }
 ```
 
-### 6.3 큐레이션 저장 및 조회
+### 6.3 큐레이션 저장 및 조회 -> 완료
 
 - `POST /librarian/curations`: 큐레이션 저장
-- `GET /librarian/curations?page=1&size=10`: 내 큐레이션 목록 조회
+- `GET /librarian/curations?page=1&size=10`: 내 큐레이션 목록 조회(응답은 3.1과 같은 페이지 형식)
 - `GET /librarian/curations/{curationId}`: 큐레이션 상세 조회
+
+저장 요청의 `hashtags`는 6.2 초안 응답에서만 쓰이는 값으로, 큐레이션 자체에는 저장되지 않습니다.
 
 ```json
 { "title": "괜찮지 않아도 괜찮은 우리에게", "description": "...", "isPublic": true, "books": [{ "isbn": "9788960867450", "displayOrder": 1, "comment": "관계 불안을 다정하게 다룹니다." }] }
 ```
 
-### 6.4 큐레이션 수정 및 삭제
+```json
+{
+  "success": true,
+  "data": {
+    "id": 5, "title": "괜찮지 않아도 괜찮은 우리에게", "description": "...", "isPublic": true, "bookCount": 1,
+    "books": [{ "id": 9, "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "cover": "https://...", "displayOrder": 1, "comment": "관계 불안을 다정하게 다룹니다." }],
+    "createdAt": "2026-07-30T12:00:00"
+  }
+}
+```
 
-- `PATCH /librarian/curations/{curationId}`: 제목, 소개, 공개 여부, 도서 순서 수정
+### 6.4 큐레이션 수정 및 삭제 -> 완료
+
+- `PATCH /librarian/curations/{curationId}`: 제목, 소개, 공개 여부, 도서 순서 수정(요청 형식은 6.3 저장과 동일하며, `books` 목록으로 기존 도서 구성을 전체 교체합니다)
 - `DELETE /librarian/curations/{curationId}`: 큐레이션 삭제
+
+다른 사서가 만든 큐레이션에 접근하면 `404 CURATION_001`을 반환합니다.
 
 ### 6.5 장서/대출 데이터 업로드 (신규, 2026-07-29)
 

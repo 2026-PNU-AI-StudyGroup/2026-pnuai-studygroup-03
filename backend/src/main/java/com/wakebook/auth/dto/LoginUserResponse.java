@@ -6,6 +6,7 @@ public record LoginUserResponse(
         Long id,
         String name,
         UserRole role,
-        String libraryName
+        String libraryName,
+        String libraryCode
 ) {
 }

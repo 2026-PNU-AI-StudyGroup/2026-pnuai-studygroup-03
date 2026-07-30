@@ -38,6 +38,9 @@ public class User {
     @Column(name = "library_name", length = 200)
     private String libraryName;
 
+    @Column(name = "library_code", length = 20)
+    private String libraryCode;
+
     @Column(length = 100)
     private String department;
 
@@ -54,6 +57,7 @@ public class User {
             String passwordHash,
             String nickname,
             String libraryName,
+            String libraryCode,
             String department
     ) {
         this.role = role;
@@ -62,6 +66,7 @@ public class User {
         this.passwordHash = passwordHash;
         this.nickname = nickname;
         this.libraryName = libraryName;
+        this.libraryCode = libraryCode;
         this.department = department;
         this.createdAt = LocalDateTime.now();
     }
@@ -92,6 +97,10 @@ public class User {
 
     public String getLibraryName() {
         return libraryName;
+    }
+
+    public String getLibraryCode() {
+        return libraryCode;
     }
 
     public String getDepartment() {

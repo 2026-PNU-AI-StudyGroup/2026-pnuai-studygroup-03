@@ -43,6 +43,7 @@ class JwtTokenProviderTest {
                 "encoded-password",
                 "책지기",
                 "부산대학교 도서관",
+                "121018",
                 "자료운영팀"
         );
         ReflectionTestUtils.setField(user, "id", 12L);

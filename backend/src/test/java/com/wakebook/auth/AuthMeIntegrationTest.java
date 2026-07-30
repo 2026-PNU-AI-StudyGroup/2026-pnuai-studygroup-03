@@ -45,6 +45,7 @@ class AuthMeIntegrationTest {
                 "me-librarian@wakebook.kr",
                 "책지기",
                 "부산대학교 도서관",
+                "121018",
                 "자료운영팀"
         );
 
@@ -59,6 +60,7 @@ class AuthMeIntegrationTest {
                 .andExpect(jsonPath("$.data.nickname").value("책지기"))
                 .andExpect(jsonPath("$.data.role").value("LIBRARIAN"))
                 .andExpect(jsonPath("$.data.libraryName").value("부산대학교 도서관"))
+                .andExpect(jsonPath("$.data.libraryCode").value("121018"))
                 .andExpect(jsonPath("$.data.email").doesNotExist())
                 .andExpect(jsonPath("$.data.passwordHash").doesNotExist())
                 .andExpect(jsonPath("$.data.department").doesNotExist())
@@ -71,6 +73,7 @@ class AuthMeIntegrationTest {
                 "USER",
                 "김독자",
                 "me-user@wakebook.kr",
+                null,
                 null,
                 null,
                 null
@@ -107,6 +110,7 @@ class AuthMeIntegrationTest {
                 "me-invalid-token@wakebook.kr",
                 null,
                 null,
+                null,
                 null
         );
         String tamperedToken = tamperSignature(session.accessToken());
@@ -141,6 +145,7 @@ class AuthMeIntegrationTest {
                 "me-role@wakebook.kr",
                 null,
                 null,
+                null,
                 null
         );
 
@@ -160,6 +165,7 @@ class AuthMeIntegrationTest {
             String email,
             String nickname,
             String libraryName,
+            String libraryCode,
             String department
     ) throws Exception {
         String signupBody = """
@@ -170,6 +176,7 @@ class AuthMeIntegrationTest {
                   "password": "Password!123",
                   "nickname": %s,
                   "libraryName": %s,
+                  "libraryCode": %s,
                   "department": %s
                 }
                 """.formatted(
@@ -178,6 +185,7 @@ class AuthMeIntegrationTest {
                 email,
                 jsonString(nickname),
                 jsonString(libraryName),
+                jsonString(libraryCode),
                 jsonString(department)
         );
 

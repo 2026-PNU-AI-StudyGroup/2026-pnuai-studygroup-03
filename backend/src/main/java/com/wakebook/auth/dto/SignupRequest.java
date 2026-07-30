@@ -29,15 +29,18 @@ public record SignupRequest(
         @Size(max = 200, message = "소속 도서관은 200자 이하여야 합니다.")
         String libraryName,
 
+        @Size(max = 20, message = "도서관 코드는 20자 이하여야 합니다.")
+        String libraryCode,
+
         @Size(max = 100, message = "담당 부서는 100자 이하여야 합니다.")
         String department
 ) {
-    @AssertTrue(message = "사서는 소속 도서관과 담당 부서를 입력해야 합니다.")
+    @AssertTrue(message = "사서는 소속 도서관, 도서관 코드, 담당 부서를 입력해야 합니다.")
     public boolean isLibrarianInformationValid() {
         if (role != UserRole.LIBRARIAN) {
             return true;
         }
-        return hasText(libraryName) && hasText(department);
+        return hasText(libraryName) && hasText(libraryCode) && hasText(department);
     }
 
     private static boolean hasText(String value) {
@@ -53,6 +56,7 @@ public record SignupRequest(
                 ", password=[REDACTED]" +
                 ", nickname=" + nickname +
                 ", libraryName=" + libraryName +
+                ", libraryCode=" + libraryCode +
                 ", department=" + department +
                 ']';
     }

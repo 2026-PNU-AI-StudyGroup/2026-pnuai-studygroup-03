@@ -60,6 +60,7 @@ public class AuthService {
                 passwordEncoder.encode(request.password()),
                 nullableStrip(request.nickname()),
                 librarian ? nullableStrip(request.libraryName()) : null,
+                librarian ? nullableStrip(request.libraryCode()) : null,
                 librarian ? nullableStrip(request.department()) : null
         );
 
@@ -86,7 +87,8 @@ public class AuthService {
                 user.getId(),
                 user.getName(),
                 user.getRole(),
-                user.getLibraryName()
+                user.getLibraryName(),
+                user.getLibraryCode()
         );
         return new LoginResponse(accessToken, loginUser);
     }
@@ -101,7 +103,8 @@ public class AuthService {
                 user.getName(),
                 user.getNickname(),
                 user.getRole(),
-                user.getLibraryName()
+                user.getLibraryName(),
+                user.getLibraryCode()
         );
     }
 
