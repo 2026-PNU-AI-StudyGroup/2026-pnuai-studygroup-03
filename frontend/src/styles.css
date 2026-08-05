@@ -1,6 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono&family=Gowun+Dodum&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+@font-face {
+  font-family: 'NanumSquare Neo';
+  src: url('./assets/fonts/NanumSquareNeo-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NanumSquare Neo';
+  src: url('./assets/fonts/NanumSquareNeo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NanumSquare Neo';
+  src: url('./assets/fonts/NanumSquareNeo-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NanumSquare Neo';
+  src: url('./assets/fonts/NanumSquareNeo-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NanumSquare Neo';
+  src: url('./assets/fonts/NanumSquareNeo-Heavy.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
 
-:root { font-family: 'Gowun Dodum', sans-serif; color: #20332c; background: #f8f6f0; font-synthesis: none; }
+:root { font-family: 'NanumSquare Neo', sans-serif; color: #20332c; background: #f8f6f0; font-synthesis: none; }
 .api-message { margin: 14px 0 0; color: #c65e40; font-size: 11px; line-height: 1.6; }
 .library-code-field { display: grid; gap: 0.4rem; margin: 0 0 1.2rem; color: #2f352e; font-size: 0.88rem; font-weight: 700; text-align: left; }.library-code-field input { max-width: 18rem; padding: 0.7rem 0.8rem; border: 1px solid #d6d5cd; border-radius: 0.45rem; background: #fff; font: inherit; }
 * { box-sizing: border-box; } html { scroll-behavior: smooth; } body { margin: 0; } button, a { font: inherit; } button { cursor: pointer; border: 0; } a { text-decoration: none; color: inherit; }
@@ -25,3 +59,51 @@ h1,h2,h3,p { margin-top: 0; }.hero h1 { font: 600 clamp(50px,6vw,77px)/1.08 'Pla
 .auth { min-height:100vh; display:grid; grid-template-columns:.9fr 1.1fr; background:#e4efe7; }.auth>.logo { padding:35px; align-self:start; }.auth form { background:#fffdf9; padding:11vh max(9vw,50px); }.auth form h1 { font:600 38px/1.25 'Playfair Display','Gowun Dodum',serif; letter-spacing:-2px; margin:0 0 32px; }.auth label { display:block; font-size:12px; color:#52665a; margin-bottom:17px; }.auth input { display:block; width:100%; border:0; border-bottom:1px solid #d3d9d3; padding:12px 2px; margin-top:7px; font:14px 'Gowun Dodum'; outline-color:#315b4c; }.auth .primary-link { border:0; width:100%; justify-content:space-between; margin-top:14px; }.auth-switch { text-align:center; color:#7c8880; font-size:12px; margin-top:22px; }.auth-switch a { color:#dd6844; margin-left:4px; }.role-choice { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin:7px 0 17px; }.role-choice button { border:1px solid #d8ded8; padding:10px; background:#fff; font-size:12px; color:#65756c; }.role-choice button.selected { background:#315b4c; color:#fff; border-color:#315b4c; }
 @media(max-width:760px){.app-header nav{display:none;position:absolute;top:62px;left:0;right:0;background:#fffdf9;padding:15px 20px}.app-header nav.open{display:grid;gap:15px}.header-actions{gap:9px}.header-cta{display:none}.mobile-menu{display:block}.quick-links{margin:-25px 15px 65px;display:block}.quick-links a{min-height:75px;padding:16px}.home-popular{margin:0 20px 70px}.home-book{grid-template-columns:115px 1fr;gap:18px;padding:13px}.home-book .book-cover{height:175px}.home-book h3{font-size:23px;margin:10px 0 4px}.home-book .book-description,.home-book .tags{display:none}.page,.center-page{padding:45px 20px 75px}.page-title{font-size:37px}.recommend-layout{grid-template-columns:1fr;margin-top:28px}.source-book{display:grid;grid-template-columns:82px 1fr;gap:15px;padding:16px}.source-book .book-cover{height:120px}.source-book>div{margin:0}.source-book h2{font-size:21px}.selector{padding:20px}.condition-summary{align-items:start}.condition-summary button{display:none}.result-heading{margin:60px 0 23px;display:block}.result-heading h2{font-size:28px}.recommend-cards{grid-template-columns:1fr}.recommend-card{display:grid;grid-template-columns:115px 1fr}.recommend-card>.book-cover{height:170px}.recommend-copy{padding:13px}.recommend-copy h3{font-size:19px}.recommend-copy .ai-reason{min-height:0;margin:10px 0!important}.metrics{display:none}.today-card{padding:18px;grid-template-columns:105px 1fr;gap:18px}.today-card .book-cover{height:150px}.today-card h2{font-size:23px;margin:9px 0}.today-card blockquote,.today-card .book-description{display:none}.today-actions{margin-top:17px}.today-actions .secondary-button{display:none}.comparison{padding:20px;grid-template-columns:1fr 40px 1fr}.compare-book .book-cover{width:105px;height:150px}.compare-book h2{font-size:17px}.ai-insight{padding:20px}.ai-insight h2{font-size:18px}.compare-table{grid-template-columns:1fr}.compare-table div{border-bottom:1px solid #e9e8e2}.shelf-tabs{gap:13px;overflow:auto}.shelf-tabs button{white-space:nowrap;font-size:11px}.shelf-list>article{grid-template-columns:65px 1fr;padding:12px;gap:13px}.shelf-list .book-cover{height:94px}.shelf-list h2{font-size:17px}.shelf-list>article>button{grid-column:2;text-align:left;padding:0}.dash-stats{gap:7px}.dash-stats div{padding:15px}.dash-stats b{font-size:28px}.dash-stats span{font-size:10px}.curation-maker{grid-template-columns:1fr}.curation-maker>div:first-child,.curation-result{padding:25px}.auth{grid-template-columns:1fr}.auth>.logo{padding:25px}.auth form{padding:50px 30px}.auth form h1{font-size:32px}}
 .user-name{color:#456054;font-size:12px}.form-error{color:#d4513b;font-size:11px;margin:-4px 0 8px}.restricted{max-width:620px;margin:0 auto;padding:130px 20px;text-align:center}.restricted>svg{color:#df6843}.restricted h1{font:600 34px 'Playfair Display','Gowun Dodum',serif;margin:22px 0 10px}.restricted p{color:#708076;font-size:13px;margin-bottom:25px}.restricted .primary-link{border:0}
+
+/* Local font roles: body 400, headings 700, prominent titles 800. */
+button, input, select, textarea, .eyebrow, .small-label, footer p {
+  font-family: 'NanumSquare Neo', sans-serif !important;
+}
+.logo, h1, h2, h3, .hero-art p, .today-card blockquote, .counter b, .result-heading > strong, .score b,
+.dash-stats b, .vs span {
+  font-family: 'NanumSquare Neo', sans-serif !important;
+  font-style: normal;
+  font-weight: 700;
+}
+.logo, .hero h1, .page-title, .center-page h1, .auth form h1 {
+  font-weight: 800;
+}
+
+/* Home page rhythm: keep the opening message compact and the book sections connected. */
+.hero {
+  min-height: 520px;
+  margin-bottom: 84px;
+  padding-top: 54px;
+  padding-bottom: 54px;
+}
+.hero-copy {
+  align-self: center;
+  padding-bottom: 8px;
+}
+.hero h1 {
+  font-size: clamp(46px, 5.2vw, 66px);
+  line-height: 1.12;
+  letter-spacing: -3px;
+  margin-bottom: 21px;
+}
+.hero-description {
+  margin-bottom: 26px;
+}
+.home-popular {
+  margin-bottom: 82px;
+}
+@media (max-width: 760px) {
+  .hero h1 {
+    font-size: 48px;
+    line-height: 1.14;
+    letter-spacing: -2.4px;
+  }
+  .home-popular {
+    margin-bottom: 54px;
+  }
+}
