@@ -41,8 +41,11 @@ public class HiddenBookCsvParser {
                 }
                 String title = safeGet(record, "도서명");
                 String author = safeGet(record, "저자");
+                String publisher = safeGet(record, "출판사");
+                Integer publishedYear = parseIntSafe(safeGet(record, "발행년도"));
+                String kdcCode = safeGet(record, "주제분류번호");
                 long loanCount = parseLongSafe(safeGet(record, "대출건수"));
-                records.add(new ItemUsageRecord(isbn.trim(), title, author, loanCount));
+                records.add(new ItemUsageRecord(isbn.trim(), title, author, publisher, publishedYear, kdcCode, loanCount));
             }
         } catch (IOException e) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_001", "CSV 파일을 읽을 수 없습니다.");
@@ -59,6 +62,14 @@ public class HiddenBookCsvParser {
             return value == null || value.isBlank() ? 0L : Long.parseLong(value.trim());
         } catch (NumberFormatException e) {
             return 0L;
+        }
+    }
+
+    private Integer parseIntSafe(String value) {
+        try {
+            return value == null || value.isBlank() ? null : Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }

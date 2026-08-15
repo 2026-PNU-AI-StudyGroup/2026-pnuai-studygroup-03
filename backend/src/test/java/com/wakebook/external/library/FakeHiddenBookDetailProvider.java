@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class FakeBookDetailProvider implements BookDetailProvider {
+public class FakeHiddenBookDetailProvider implements HiddenBookDetailProvider {
 
     private String lastIsbn;
     private boolean empty = false;

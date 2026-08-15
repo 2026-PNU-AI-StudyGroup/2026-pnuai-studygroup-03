@@ -1,28 +1,34 @@
 import { useMemo, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Pencil, Plus, Save, Trash2, Upload, XCircle } from 'lucide-react'
 import { api } from '../api/client'
+import { useAuth } from '../App'
 
 const initialCurations = [
   { id: 101, title: '괜찮지 않아도 괜찮은 우리에게', description: '불안을 이해하고 나를 돌보는 데 도움이 되는 저이용 도서 5권을 소개합니다.', isPublic: true, period: '2026.08.10 ~ 08.31', count: 5 },
   { id: 102, title: '관계의 온도를 다시 생각하다', description: '건강한 거리와 대화의 방법을 다룬 도서를 모았습니다.', isPublic: false, period: '2026.08.01 ~ 08.20', count: 4 },
 ]
-const sampleCandidates = [
-  { title: '관계에도 연습이 필요합니다', author: '박상미', loans: 2, score: 93 },
-  { title: '심리학이 이렇게 쓸모 있을 줄이야', author: '류쉬안', loans: 1, score: 89 },
-  { title: '나를 사랑하는 연습', author: '정은길', loans: 2, score: 85 },
-]
 
 function CsvPanel() {
-  const fileRef = useRef(null); const [fileName, setFileName] = useState(''); const [result, setResult] = useState(null); const [message, setMessage] = useState('')
-  const inspectCsv = async (file) => {
+  const { user } = useAuth()
+  const fileRef = useRef(null); const [fileName, setFileName] = useState(''); const [result, setResult] = useState(null); const [message, setMessage] = useState(''); const [status, setStatus] = useState('idle'); const [uploading, setUploading] = useState(false)
+  const libraryCode = user?.libraryCode; const libraryName = user?.libraryName
+  const uploadCsv = async (file) => {
     if (!file) return
-    setFileName(file.name); setMessage('')
-    const lines = (await file.text()).split(/\r?\n/).filter(Boolean); const header = (lines[0] || '').toLowerCase(); const valid = /(isbn|도서|title|제목)/.test(header)
-    const parsed = { rows: Math.max(0, lines.length - 1), validRows: valid ? Math.max(0, lines.length - 1) : 0, invalidRows: valid ? 0 : Math.max(0, lines.length - 1), columns: lines[0]?.split(',').length || 0 }
-    try { await api.uploadHiddenBooks('121018', 'WakeBook 시연도서관', file); setMessage('CSV를 등록하고 후보군 생성을 요청했습니다.') } catch { setMessage('파일 구조를 확인하고 후보군 미리보기를 생성했습니다.') }
-    setResult(parsed)
+    if (!libraryCode || !libraryName) { setStatus('error'); setMessage('사서 계정에 소속 도서관 정보가 없습니다. 회원가입 시 입력한 도서관 코드를 확인해 주세요.'); return }
+    setFileName(file.name); setMessage(''); setStatus('idle'); setResult(null); setUploading(true)
+    try {
+      const response = await api.uploadHiddenBooks(libraryCode, libraryName, file)
+      setResult(response)
+      setStatus('success')
+      setMessage(`${response.libraryName}(${response.libraryCode})의 전체 ${response.totalRows}행 중 ${response.savedCount}권을 잠자는 도서 후보군으로 등록했습니다.`)
+    } catch (err) {
+      setStatus('error')
+      setMessage(err.response?.data?.message || 'CSV 업로드에 실패했습니다. 파일 형식과 서버 상태를 확인해 주세요.')
+    } finally {
+      setUploading(false)
+    }
   }
-  return <section className="operation-panel"><div className="operation-heading"><div><span className="badge"><FileSpreadsheet size={13} /> CSV 후보군</span><h2>장서·대출 CSV 업로드</h2><p>도서관별 장서와 대출 이력을 바탕으로 저이용 도서 후보군을 생성합니다.</p></div></div><input ref={fileRef} className="file-input" type="file" accept=".csv,text/csv" onChange={e => inspectCsv(e.target.files?.[0])} /><button className="upload-dropzone" onClick={() => fileRef.current?.click()}><Upload size={25} /><b>{fileName || 'CSV 파일을 선택하세요'}</b><span>권장 열: ISBN, 제목, 저자, 대출횟수</span></button>{result && <><div className="upload-summary">{[[result.rows, '전체 행'], [result.validRows, '정상 행'], [result.invalidRows, '확인 필요'], [result.columns, '인식 열']].map(([value, label]) => <div key={label}><b>{value}</b><span>{label}</span></div>)}</div><p className="operation-message"><CheckCircle2 size={15} /> {message}</p><div className="candidate-header"><h3>생성된 잠자는 도서 후보</h3><span>대출 수 2회 이하 · 품질 기준 통과</span></div><div className="candidate-list">{sampleCandidates.map((book, index) => <article key={book.title}><b>{index + 1}</b><div><strong>{book.title}</strong><span>{book.author} · 최근 대출 {book.loans}회</span></div><em>적합도 {book.score}</em></article>)}</div></>}</section>
+  return <section className="operation-panel"><div className="operation-heading"><div><span className="badge"><FileSpreadsheet size={13} /> CSV 후보군</span><h2>장서·대출 CSV 업로드</h2><p>정보나루에서 내려받은 "장서 대출목록" CSV를 올리면 {libraryName || '소속 도서관'}의 저이용 도서 후보군을 다시 만듭니다. 같은 도서관의 기존 후보군은 전부 새로 교체됩니다.</p></div></div><input ref={fileRef} className="file-input" type="file" accept=".csv,text/csv" onChange={e => uploadCsv(e.target.files?.[0])} disabled={uploading} /><button className="upload-dropzone" onClick={() => fileRef.current?.click()} disabled={uploading}><Upload size={25} /><b>{uploading ? '업로드 중...' : fileName || 'CSV 파일을 선택하세요'}</b><span>정보나루 오픈데이터 &gt; 장서 대출목록 CSV (컬럼: 도서명, 저자, 출판사, ISBN, 주제분류번호, 대출건수 등)</span></button>{message && <p className={status === 'error' ? 'operation-message error' : 'operation-message'}>{status === 'success' ? <CheckCircle2 size={15} /> : <XCircle size={15} />} {message}</p>}{result && <div className="upload-summary compact"><div><b>{result.totalRows}</b><span>CSV 전체 행</span></div><div><b>{result.savedCount}</b><span>후보군에 등록됨</span></div></div>}</section>
 }
 
 function CurationPanel() {

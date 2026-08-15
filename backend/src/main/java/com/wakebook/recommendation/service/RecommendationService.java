@@ -53,9 +53,12 @@ public class RecommendationService {
 
         return pool.stream()
             .map(book -> toResponse(book, scoresByIsbn.get(book.getIsbn()), minLoanCount, maxLoanCount))
+            .filter(response -> response.keywordRelevance() >= MIN_KEYWORD_RELEVANCE)
             .sorted(Comparator.comparingInt(RecommendationResponse::score).reversed())
             .toList();
     }
+
+    private static final int MIN_KEYWORD_RELEVANCE = 20;
 
     private RecommendationResponse toResponse(HiddenBook book, AiScorePayload aiScore, long minLoanCount, long maxLoanCount) {
         int keywordRelevance = aiScore != null ? clamp(aiScore.keywordRelevance()) : 0;

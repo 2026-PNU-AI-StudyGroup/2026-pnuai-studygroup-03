@@ -72,9 +72,12 @@ public class RecommendationExploreService {
 
         return pool.stream()
             .map(book -> toResponse(book, scoresByIsbn.get(book.getIsbn()), minLoanCount, maxLoanCount))
+            .filter(response -> response.relevance() >= MIN_RELEVANCE)
             .sorted(Comparator.comparingInt(ExploreResponse::score).reversed())
             .toList();
     }
+
+    private static final int MIN_RELEVANCE = 20;
 
     private ExploreResponse toResponse(HiddenBook book, AiScorePayload aiScore, long minLoanCount, long maxLoanCount) {
         int relevance = aiScore != null ? clamp(aiScore.relevance()) : 0;
