@@ -4,6 +4,8 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -49,6 +51,19 @@ public class HiddenBook {
     @Column(name = "quality_score", nullable = false)
     private int qualityScore;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private HiddenBookSource source;
+
+    @Column(name = "call_number", length = 100)
+    private String callNumber;
+
+    @Column(name = "shelf_name", length = 200)
+    private String shelfName;
+
+    @Column(length = 2000)
+    private String description;
+
     @Column(length = 1000)
     private String reason;
 
@@ -66,6 +81,7 @@ public class HiddenBook {
     protected HiddenBook() {
     }
 
+    /** 사서 CSV 업로드로 만든 후보. 실제 대출건수를 알고 있다. */
     public HiddenBook(
         String isbn,
         String libraryCode,
@@ -78,6 +94,26 @@ public class HiddenBook {
         String reason,
         List<String> keywords
     ) {
+        this(isbn, libraryCode, libraryName, title, author, cover, loanCount, qualityScore,
+            reason, keywords, HiddenBookSource.CSV_UPLOAD, null, null, null);
+    }
+
+    public HiddenBook(
+        String isbn,
+        String libraryCode,
+        String libraryName,
+        String title,
+        String author,
+        String cover,
+        long loanCount,
+        int qualityScore,
+        String reason,
+        List<String> keywords,
+        HiddenBookSource source,
+        String callNumber,
+        String shelfName,
+        String description
+    ) {
         this.isbn = isbn;
         this.libraryCode = libraryCode;
         this.libraryName = libraryName;
@@ -88,9 +124,29 @@ public class HiddenBook {
         this.qualityScore = qualityScore;
         this.reason = reason;
         this.keywords = new ArrayList<>(keywords);
+        this.source = source;
+        this.callNumber = callNumber;
+        this.shelfName = shelfName;
+        this.description = description;
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
+    }
+
+    /**
+     * 추천 이유는 후보군을 만들 때가 아니라 처음 화면에 필요할 때 생성한다.
+     * 후보 도서 수만큼 AI를 미리 호출하면 산출이 몇 배로 느려지고 대부분은 노출되지도 않는다.
+     */
+    public void applyGeneratedReason(String generatedReason, List<String> generatedKeywords) {
+        this.reason = generatedReason;
+        if (generatedKeywords != null && !generatedKeywords.isEmpty()) {
+            this.keywords = new ArrayList<>(generatedKeywords);
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public boolean hasReason() {
+        return reason != null && !reason.isBlank();
     }
 
     public Long getId() {
@@ -131,6 +187,22 @@ public class HiddenBook {
 
     public String getReason() {
         return reason;
+    }
+
+    public HiddenBookSource getSource() {
+        return source;
+    }
+
+    public String getCallNumber() {
+        return callNumber;
+    }
+
+    public String getShelfName() {
+        return shelfName;
+    }
+
+    public String getDescription() {
+        return description;
     }
 
     public List<String> getKeywords() {

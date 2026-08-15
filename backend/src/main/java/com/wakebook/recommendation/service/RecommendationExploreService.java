@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendationExploreService {
 
+    private static final int RESULT_LIMIT = 9;
+
     private final HiddenBookRepository hiddenBookRepository;
     private final BookDetailProvider bookDetailProvider;
     private final OpenAiClient openAiClient;
@@ -73,6 +75,7 @@ public class RecommendationExploreService {
         return pool.stream()
             .map(book -> toResponse(book, scoresByIsbn.get(book.getIsbn()), minLoanCount, maxLoanCount))
             .sorted(Comparator.comparingInt(ExploreResponse::score).reversed())
+            .limit(RESULT_LIMIT)
             .toList();
     }
 
@@ -85,7 +88,8 @@ public class RecommendationExploreService {
 
         return new ExploreResponse(
             book.getIsbn(), book.getTitle(), book.getAuthor(), book.getCover(),
-            score, relevance, discoveryValue, reason, book.getKeywords()
+            score, relevance, discoveryValue, reason, book.getKeywords(),
+            book.getLibraryName(), book.getCallNumber(), book.getShelfName()
         );
     }
 
@@ -129,6 +133,13 @@ public class RecommendationExploreService {
                 .append('\n');
         }
         return builder.toString();
+    }
+
+    private String bookSummary(HiddenBook book) {
+        if (book.getDescription() != null && !book.getDescription().isBlank()) {
+            return book.getDescription();
+        }
+        return book.getReason() != null ? book.getReason() : "";
     }
 
     private int clamp(Integer value) {

@@ -43,7 +43,8 @@ class RecommendationControllerTest {
     void 추천_요청은_서비스_결과를_그대로_반환한다() throws Exception {
         when(recommendationService.recommend(any())).thenReturn(List.of(new RecommendationResponse(
                 "9788960867450", "관계에도 연습이 필요합니다", "박상미", "https://example.com/cover.jpg",
-                93, 95, 92, 90, 89, "추천 이유", List.of("인간관계", "심리")
+                93, 95, 92, 90, 89, "추천 이유", List.of("인간관계", "심리"),
+                "부산광역시 금정도서관", "813.7-박51ㄱ", "종합자료실"
         )));
 
         mockMvc.perform(post("/recommendations")
@@ -85,7 +86,8 @@ class RecommendationControllerTest {
     void 재탐색_요청은_서비스_결과를_그대로_반환한다() throws Exception {
         when(recommendationExploreService.explore(any())).thenReturn(List.of(new ExploreResponse(
                 "9788960867450", "관계에도 연습이 필요합니다", "박상미", "https://example.com/cover.jpg",
-                80, 80, 80, "더 깊이 있는 책", List.of("인간관계")
+                80, 80, 80, "더 깊이 있는 책", List.of("인간관계"),
+                "부산광역시 금정도서관", "813.7-박51ㄱ", "종합자료실"
         )));
 
         mockMvc.perform(post("/recommendations/explore")

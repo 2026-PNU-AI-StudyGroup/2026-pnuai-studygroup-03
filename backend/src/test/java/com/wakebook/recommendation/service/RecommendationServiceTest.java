@@ -55,7 +55,7 @@ class RecommendationServiceTest {
             """);
 
         List<RecommendationResponse> result = recommendationService.recommend(new RecommendationRequest(
-                "9788996991342", LIBRARY_CODE, List.of("인간관계", "심리"), "마음의 위로", "따뜻한"
+                "9788996991342", LIBRARY_CODE, List.of("인간관계", "심리"), "마음의 위로", "따뜻한", null
         ));
 
         assertThat(result).hasSize(2);
@@ -71,7 +71,7 @@ class RecommendationServiceTest {
         when(hiddenBookRepository.findAllByLibraryCode(LIBRARY_CODE)).thenReturn(List.of());
 
         List<RecommendationResponse> result = recommendationService.recommend(new RecommendationRequest(
-                "9788996991342", LIBRARY_CODE, List.of("인간관계"), "마음의 위로", "따뜻한"
+                "9788996991342", LIBRARY_CODE, List.of("인간관계"), "마음의 위로", "따뜻한", null
         ));
 
         assertThat(result).isEmpty();
@@ -80,14 +80,14 @@ class RecommendationServiceTest {
     @Test
     void 지원하지_않는_독서_목적이면_VALIDATION_001_예외() {
         assertThatThrownBy(() -> recommendationService.recommend(new RecommendationRequest(
-                "9788996991342", LIBRARY_CODE, List.of("인간관계"), "알수없는목적", "따뜻한"
+                "9788996991342", LIBRARY_CODE, List.of("인간관계"), "알수없는목적", "따뜻한", null
         ))).isInstanceOf(ApiException.class);
     }
 
     @Test
     void libraryCode가_없으면_VALIDATION_001_예외() {
         assertThatThrownBy(() -> recommendationService.recommend(new RecommendationRequest(
-                "9788996991342", " ", List.of("인간관계"), "마음의 위로", "따뜻한"
+                "9788996991342", " ", List.of("인간관계"), "마음의 위로", "따뜻한", null
         ))).isInstanceOf(ApiException.class);
     }
 }

@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class LibrarianDashboardService {
 
-    private static final int PLACEHOLDER_EXHIBITION_LOAN_RATE = 0;
     private static final int POPULAR_KEYWORD_LIMIT = 3;
 
     private final UserRepository userRepository;
@@ -71,7 +70,6 @@ public class LibrarianDashboardService {
         return new LibrarianDashboardResponse(
                 pool.size(),
                 monthlyCurationCount,
-                PLACEHOLDER_EXHIBITION_LOAN_RATE,
                 popularKeywords,
                 recentCurations
         );

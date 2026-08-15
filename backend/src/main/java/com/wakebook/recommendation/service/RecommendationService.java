@@ -22,6 +22,9 @@ import java.util.stream.Collectors;
 @Service
 public class RecommendationService {
 
+    private static final int DEFAULT_LIMIT = 9;
+    private static final int MAX_LIMIT = 30;
+
     private final HiddenBookRepository hiddenBookRepository;
     private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper;
@@ -54,7 +57,15 @@ public class RecommendationService {
         return pool.stream()
             .map(book -> toResponse(book, scoresByIsbn.get(book.getIsbn()), minLoanCount, maxLoanCount))
             .sorted(Comparator.comparingInt(RecommendationResponse::score).reversed())
+            .limit(resolveLimit(request.limit()))
             .toList();
+    }
+
+    private int resolveLimit(Integer requested) {
+        if (requested == null) {
+            return DEFAULT_LIMIT;
+        }
+        return Math.max(1, Math.min(requested, MAX_LIMIT));
     }
 
     private RecommendationResponse toResponse(HiddenBook book, AiScorePayload aiScore, long minLoanCount, long maxLoanCount) {
@@ -71,7 +82,8 @@ public class RecommendationService {
         return new RecommendationResponse(
             book.getIsbn(), book.getTitle(), book.getAuthor(), book.getCover(),
             score, keywordRelevance, purposeMatch, moodMatch, discoveryValue,
-            reason, book.getKeywords()
+            reason, book.getKeywords(),
+            book.getLibraryName(), book.getCallNumber(), book.getShelfName()
         );
     }
 
@@ -111,6 +123,14 @@ public class RecommendationService {
                 .append('\n');
         }
         return builder.toString();
+    }
+
+    /** 후보군을 만들 때 AI를 돌리지 않으므로, 프롬프트에는 정보나루 소개글 원문을 넣는다. */
+    private String bookSummary(HiddenBook book) {
+        if (book.getDescription() != null && !book.getDescription().isBlank()) {
+            return book.getDescription();
+        }
+        return book.getReason() != null ? book.getReason() : "";
     }
 
     private int clamp(Integer value) {

@@ -9,7 +9,11 @@ import java.util.List;
 public record BookDetailApiResponse(@JsonProperty("response") Response response) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Response(@JsonProperty("detail") List<Detail> detail) {
+    public record Response(
+        @JsonProperty("detail") List<Detail> detail,
+        @JsonProperty("errCode") String errCode,
+        @JsonProperty("error") String error
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

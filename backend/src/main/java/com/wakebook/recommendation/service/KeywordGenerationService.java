@@ -3,11 +3,13 @@ package com.wakebook.recommendation.service;
 import tools.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wakebook.common.ApiException;
+import com.wakebook.common.config.CacheConfig;
 import com.wakebook.external.library.BookDetail;
 import com.wakebook.external.library.BookDetailProvider;
 import com.wakebook.external.openai.OpenAiClient;
 import com.wakebook.recommendation.dto.KeywordsResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,6 +33,7 @@ public class KeywordGenerationService {
         this.objectMapper = objectMapper;
     }
 
+    @Cacheable(cacheNames = CacheConfig.AI_KEYWORDS, key = "#isbn", unless = "#result == null")
     public KeywordsResponse generateKeywords(String isbn) {
         if (isbn == null || isbn.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_001", "isbn은 필수입니다.");

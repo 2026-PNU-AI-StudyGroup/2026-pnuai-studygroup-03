@@ -1,53 +1,49 @@
 package com.wakebook.book.controller;
 
-import com.wakebook.book.dto.HiddenBookUploadResponse;
+import com.wakebook.book.domain.HiddenBookJob;
+import com.wakebook.book.domain.HiddenBookJobStatus;
+import com.wakebook.book.domain.HiddenBookSource;
+import com.wakebook.book.dto.HiddenBookJobResponse;
 import com.wakebook.book.service.HiddenBookUploadService;
-import com.wakebook.common.exception.GlobalExceptionHandler;
-import org.junit.jupiter.api.BeforeEach;
+import com.wakebook.common.response.ApiResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.nio.charset.StandardCharsets;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class LibrarianHiddenBookControllerTest {
 
-    private HiddenBookUploadService hiddenBookUploadService;
-    private MockMvc mockMvc;
-
-    @BeforeEach
-    void setUp() {
-        hiddenBookUploadService = mock(HiddenBookUploadService.class);
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(new LibrarianHiddenBookController(hiddenBookUploadService))
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
-    }
-
     @Test
-    void 업로드_요청은_서비스_결과를_그대로_반환한다() throws Exception {
+    void 업로드_요청은_인증된_jwt_subject를_전달하고_작업을_202로_접수한다() {
+        HiddenBookUploadService hiddenBookUploadService = mock(HiddenBookUploadService.class);
+        LibrarianHiddenBookController controller =
+                new LibrarianHiddenBookController(hiddenBookUploadService);
         MockMultipartFile file = new MockMultipartFile(
                 "file", "library.csv", "text/csv", "dummy".getBytes(StandardCharsets.UTF_8)
         );
-        when(hiddenBookUploadService.upload(eq("121018"), eq("부산광역시 금정도서관"), any()))
-                .thenReturn(new HiddenBookUploadResponse("121018", "부산광역시 금정도서관", 10, 3));
+        HiddenBookJob job =
+                new HiddenBookJob("121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L);
+        when(hiddenBookUploadService.upload(eq("12"), eq("121018"), any())).thenReturn(job);
+        Jwt jwt = Jwt.withTokenValue("access-token")
+                .header("alg", "HS256")
+                .subject("12")
+                .build();
 
-        mockMvc.perform(multipart("/librarian/hidden-books/upload")
-                        .file(file)
-                        .param("libraryCode", "121018")
-                        .param("libraryName", "부산광역시 금정도서관"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.libraryCode").value("121018"))
-                .andExpect(jsonPath("$.data.savedCount").value(3));
+        ResponseEntity<ApiResponse<HiddenBookJobResponse>> response =
+                controller.upload(jwt, "121018", file);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data().libraryCode()).isEqualTo("121018");
+        assertThat(response.getBody().data().status()).isEqualTo(HiddenBookJobStatus.PENDING);
     }
 }

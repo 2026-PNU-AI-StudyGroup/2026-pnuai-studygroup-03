@@ -1,14 +1,12 @@
 package com.wakebook.book.service;
 
-import com.wakebook.book.domain.HiddenBook;
-import com.wakebook.book.dto.HiddenBookUploadResponse;
-import com.wakebook.book.repository.HiddenBookRepository;
+import com.wakebook.book.domain.HiddenBookJob;
+import com.wakebook.book.domain.HiddenBookSource;
 import com.wakebook.book.support.HiddenBookCsvParser;
-import com.wakebook.book.support.HiddenBookProperties;
 import com.wakebook.common.ApiException;
-import com.wakebook.external.library.BookDetail;
-import com.wakebook.external.library.FakeBookDetailProvider;
-import com.wakebook.external.openai.FakeOpenAiClient;
+import com.wakebook.user.domain.User;
+import com.wakebook.user.domain.UserRole;
+import com.wakebook.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,92 +14,134 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HiddenBookUploadServiceTest {
 
     private static final String CSV_HEADER =
         "번호,도서명,저자,출판사,발행년도,ISBN,세트 ISBN,부가기호,권,주제분류번호,도서권수,대출건수,등록일자\n";
+    private static final String CSV_ROW =
+        "\"1\",\"관계에도 연습이 필요합니다\",\"박상미\",\"빌리버튼\",\"2018\",\"9788960867450\",\"\",\"\",\"\",\"\",\"1\",\"1\",\"2026-06-24\"\n";
 
     @Mock
-    private HiddenBookRepository hiddenBookRepository;
+    private UserRepository userRepository;
 
-    private FakeBookDetailProvider fakeBookDetailProvider;
-    private FakeOpenAiClient fakeOpenAiClient;
+    @Mock
+    private HiddenBookJobService jobService;
+
+    @Mock
+    private HiddenBookCollector collector;
+
     private HiddenBookUploadService hiddenBookUploadService;
 
     @BeforeEach
     void setUp() {
-        fakeBookDetailProvider = new FakeBookDetailProvider();
-        fakeOpenAiClient = new FakeOpenAiClient();
-        HiddenBookProperties hiddenBookProperties = new HiddenBookProperties(2, 30);
-
         hiddenBookUploadService = new HiddenBookUploadService(
-            new HiddenBookCsvParser(),
-            fakeBookDetailProvider,
-            fakeOpenAiClient,
-            hiddenBookRepository,
-            hiddenBookProperties,
-            new ObjectMapper()
+            new HiddenBookCsvParser(), userRepository, jobService, collector
         );
     }
 
     @Test
-    void 대출건수가_낮고_품질검증을_통과한_후보만_해당_도서관에_저장한다() {
-        String csv = CSV_HEADER
-            + "\"1\",\"관계에도 연습이 필요합니다\",\"박상미\",\"빌리버튼\",\"2018\",\"9788960867450\",\"\",\"\",\"\",\"\",\"1\",\"1\",\"2026-06-24\"\n"
-            + "\"2\",\"대출많은책\",\"아무개\",\"출판사\",\"2020\",\"9999999999999\",\"\",\"\",\"\",\"\",\"1\",\"100\",\"2026-06-24\"\n";
-        MockMultipartFile file = new MockMultipartFile(
-            "file", "부산광역시 금정도서관 장서 대출목록 (2026년 06월).csv", "text/csv", csv.getBytes(StandardCharsets.UTF_8)
-        );
-        fakeBookDetailProvider.setDetail(new BookDetail(
-            "9788960867450", "관계에도 연습이 필요합니다", "박상미", "빌리버튼", 2018,
-            "https://example.com/cover2.jpg",
-            "나를 지키면서 타인과 건강하게 연결되는 연습을 다루는 책으로, 관계에 지친 이들에게 실질적인 도움을 준다."
-        ));
-        fakeOpenAiClient.setResponse("{\"reason\": \"추천 이유\", \"keywords\": [\"인간관계\", \"심리\"]}");
+    void 업로드는_파싱만_하고_산출_작업을_비동기로_넘긴다() {
+        givenLibrarian(UserRole.LIBRARIAN, "121018");
+        HiddenBookJob job = new HiddenBookJob("121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L);
+        // 사서의 CSV 업로드는 스스로 정확한 데이터를 넣는 일이라 쿨다운·일일 제한을 적용하지 않는다.
+        when(jobService.create(
+            eq("121018"), eq("부산광역시 금정도서관"), eq(HiddenBookSource.CSV_UPLOAD), any(), eq(false)
+        )).thenReturn(job);
 
-        HiddenBookUploadResponse response = hiddenBookUploadService.upload("121018", "부산광역시 금정도서관", file);
+        HiddenBookJob created = hiddenBookUploadService.upload("12", "121018", csvFile(CSV_HEADER + CSV_ROW));
 
-        verify(hiddenBookRepository).deleteAllByLibraryCode("121018");
+        assertThat(created).isSameAs(job);
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<HiddenBook>> captor = ArgumentCaptor.forClass(List.class);
-        verify(hiddenBookRepository).saveAll(captor.capture());
-
-        List<HiddenBook> saved = captor.getValue();
-        assertThat(saved).hasSize(1);
-        assertThat(saved.get(0).getIsbn()).isEqualTo("9788960867450");
-        assertThat(saved.get(0).getLibraryCode()).isEqualTo("121018");
-        assertThat(saved.get(0).getLibraryName()).isEqualTo("부산광역시 금정도서관");
-        assertThat(saved.get(0).getReason()).isEqualTo("추천 이유");
-        assertThat(response.libraryCode()).isEqualTo("121018");
-        assertThat(response.totalRows()).isEqualTo(2);
-        assertThat(response.savedCount()).isEqualTo(1);
+        ArgumentCaptor<List<HiddenBookCandidate>> captor = ArgumentCaptor.forClass(List.class);
+        verify(collector).collectFromCsv(any(), eq("121018"), eq("부산광역시 금정도서관"), captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
+        assertThat(captor.getValue().get(0).isbn()).isEqualTo("9788960867450");
+        assertThat(captor.getValue().get(0).loanCount()).isEqualTo(1);
     }
 
     @Test
-    void libraryCode가_없으면_VALIDATION_001_예외() {
-        MockMultipartFile file = new MockMultipartFile(
-            "file", "test.csv", "text/csv", CSV_HEADER.getBytes(StandardCharsets.UTF_8)
-        );
+    void libraryCode를_생략하면_사서의_소속_도서관으로_접수한다() {
+        givenLibrarian(UserRole.LIBRARIAN, "121018");
+        when(jobService.create(eq("121018"), any(), any(), any(), eq(false)))
+            .thenReturn(new HiddenBookJob("121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L));
 
-        assertThatThrownBy(() -> hiddenBookUploadService.upload(" ", "부산광역시 금정도서관", file))
-            .isInstanceOf(ApiException.class);
+        hiddenBookUploadService.upload("12", null, csvFile(CSV_HEADER + CSV_ROW));
+
+        verify(collector).collectFromCsv(any(), eq("121018"), any(), any());
+    }
+
+    @Test
+    void 다른_도서관_코드로_업로드하면_AUTH_002_예외() {
+        givenLibrarian(UserRole.LIBRARIAN, "121018");
+
+        assertThatThrownBy(() -> hiddenBookUploadService.upload("12", "999999", csvFile(CSV_HEADER + CSV_ROW)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("소속 도서관");
+        verify(collector, never()).collectFromCsv(any(), any(), any(), any());
+    }
+
+    @Test
+    void 사서가_아니면_AUTH_002_예외() {
+        givenLibrarian(UserRole.USER, null);
+
+        assertThatThrownBy(() -> hiddenBookUploadService.upload("12", "121018", csvFile(CSV_HEADER + CSV_ROW)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("사서만");
+    }
+
+    @Test
+    void 소속_도서관_코드가_없는_사서면_AUTH_002_예외() {
+        givenLibrarian(UserRole.LIBRARIAN, null);
+
+        assertThatThrownBy(() -> hiddenBookUploadService.upload("12", null, csvFile(CSV_HEADER + CSV_ROW)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("소속 도서관 코드");
     }
 
     @Test
     void 파일이_비어있으면_VALIDATION_001_예외() {
+        givenLibrarian(UserRole.LIBRARIAN, "121018");
         MockMultipartFile emptyFile = new MockMultipartFile("file", "test.csv", "text/csv", new byte[0]);
 
-        assertThatThrownBy(() -> hiddenBookUploadService.upload("121018", "부산광역시 금정도서관", emptyFile))
-            .isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> hiddenBookUploadService.upload("12", "121018", emptyFile))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("file");
+    }
+
+    @Test
+    void ISBN이_있는_행이_없으면_VALIDATION_001_예외() {
+        givenLibrarian(UserRole.LIBRARIAN, "121018");
+
+        assertThatThrownBy(() -> hiddenBookUploadService.upload("12", "121018", csvFile(CSV_HEADER)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("ISBN");
+    }
+
+    private MockMultipartFile csvFile(String content) {
+        return new MockMultipartFile("file", "library.csv", "text/csv", content.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void givenLibrarian(UserRole role, String libraryCode) {
+        User user = new User(
+            role, "김사서", "librarian@wakebook.kr", "hash", null,
+            libraryCode == null ? null : "부산광역시 금정도서관", libraryCode,
+            libraryCode == null ? null : "자료운영팀"
+        );
+        lenient().when(userRepository.findById(12L)).thenReturn(Optional.of(user));
     }
 }

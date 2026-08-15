@@ -2,12 +2,14 @@ package com.wakebook.recommendation.service;
 
 import tools.jackson.databind.ObjectMapper;
 import com.wakebook.common.ApiException;
+import com.wakebook.common.config.CacheConfig;
 import com.wakebook.external.library.BookDetail;
 import com.wakebook.external.library.BookDetailProvider;
 import com.wakebook.external.openai.OpenAiClient;
 import com.wakebook.recommendation.dto.CompareRequest;
 import com.wakebook.recommendation.dto.CompareResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,6 +34,11 @@ public class BookComparisonService {
         this.objectMapper = objectMapper;
     }
 
+    @Cacheable(
+        cacheNames = CacheConfig.BOOK_COMPARISONS,
+        key = "#request.popularBook() + ':' + #request.hiddenBook()",
+        unless = "#result == null"
+    )
     public CompareResponse compare(CompareRequest request) {
         BookDetail popularBook = fetchDetail(request.popularBook());
         BookDetail hiddenBook = fetchDetail(request.hiddenBook());

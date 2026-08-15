@@ -69,7 +69,6 @@ class LibrarianDashboardServiceTest {
         assertThat(response.hiddenBookCount()).isEqualTo(5);
         assertThat(response.popularKeywords()).containsExactly("청년", "불안", "관계");
         assertThat(response.monthlyCurationCount()).isEqualTo(4L);
-        assertThat(response.exhibitionLoanRate()).isZero();
         assertThat(response.recentCurations()).singleElement().satisfies(item -> {
             assertThat(item.id()).isEqualTo(5L);
             assertThat(item.title()).isEqualTo("괜찮지 않아도 괜찮은 우리에게");

@@ -13,6 +13,9 @@ public record RecommendationResponse(
     int moodMatch,
     int discoveryValue,
     String reason,
-    List<String> keywords
+    List<String> keywords,
+    String libraryName,
+    String callNumber,
+    String shelfName
 ) {
 }
