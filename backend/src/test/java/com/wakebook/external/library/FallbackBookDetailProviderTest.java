@@ -15,13 +15,16 @@ class FallbackBookDetailProviderTest {
 
     private FakeBookDetailProvider aladin;
     private FakeBookDetailProvider data4Library;
+    private FakeBookDetailProvider kakao;
     private FallbackBookDetailProvider provider;
 
     @BeforeEach
     void setUp() {
         aladin = new FakeBookDetailProvider();
         data4Library = new FakeBookDetailProvider();
-        provider = new FallbackBookDetailProvider(aladin, data4Library);
+        kakao = new FakeBookDetailProvider();
+        kakao.makeEmpty();
+        provider = new FallbackBookDetailProvider(aladin, data4Library, kakao);
     }
 
     @Test
@@ -78,6 +81,54 @@ class FallbackBookDetailProviderTest {
         data4Library.makeEmpty();
 
         assertThat(provider.fetch(ISBN)).isEmpty();
+    }
+
+    /** 정보나루 한도를 다 쓴 날에도 카카오가 후보를 건져야 한다. */
+    @Test
+    void 알라딘과_정보나루가_모두_비면_카카오로_넘어간다() {
+        aladin.makeEmpty();
+        data4Library.makeEmpty();
+        kakao.setDetail(detail("카카오 소개글입니다."));
+
+        Optional<BookDetail> result = provider.fetch(ISBN);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().description()).isEqualTo("카카오 소개글입니다.");
+        assertThat(kakao.lastIsbn()).isEqualTo(ISBN);
+    }
+
+    @Test
+    void 앞선_두_곳에_소개글이_없으면_카카오_소개글을_쓴다() {
+        aladin.setDetail(detail(null));
+        data4Library.setDetail(detail(null));
+        kakao.setDetail(detail("카카오 소개글입니다."));
+
+        Optional<BookDetail> result = provider.fetch(ISBN);
+
+        assertThat(result.get().description()).isEqualTo("카카오 소개글입니다.");
+    }
+
+    /** 카카오는 마지막 수단이라, 앞에서 이미 해결되면 호출하지 않아야 한다. */
+    @Test
+    void 알라딘이_해결하면_카카오를_부르지_않는다() {
+        aladin.setDetail(detail("알라딘 소개글입니다."));
+
+        provider.fetch(ISBN);
+
+        assertThat(kakao.lastIsbn()).isNull();
+    }
+
+    /** 셋 다 소개글이 없어도 제목·저자는 살아 있어야 한다. */
+    @Test
+    void 셋_다_소개글이_없으면_정보나루_응답이라도_돌려준다() {
+        aladin.setDetail(detail(null));
+        data4Library.setDetail(detail(null));
+        kakao.makeEmpty();
+
+        Optional<BookDetail> result = provider.fetch(ISBN);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().title()).isEqualTo("미움받을 용기");
     }
 
     private BookDetail detail(String description) {

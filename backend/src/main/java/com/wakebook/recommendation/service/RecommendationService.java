@@ -24,6 +24,7 @@ public class RecommendationService {
 
     private static final int DEFAULT_LIMIT = 9;
     private static final int MAX_LIMIT = 30;
+    private static final int MIN_KEYWORD_RELEVANCE = 20;
 
     private final HiddenBookRepository hiddenBookRepository;
     private final OpenAiClient openAiClient;
@@ -56,6 +57,7 @@ public class RecommendationService {
 
         return pool.stream()
             .map(book -> toResponse(book, scoresByIsbn.get(book.getIsbn()), minLoanCount, maxLoanCount))
+            .filter(response -> response.keywordRelevance() >= MIN_KEYWORD_RELEVANCE)
             .sorted(Comparator.comparingInt(RecommendationResponse::score).reversed())
             .limit(resolveLimit(request.limit()))
             .toList();
