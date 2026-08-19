@@ -1,6 +1,7 @@
 package com.wakebook.recommendation.service;
 
 import com.wakebook.book.domain.HiddenBook;
+import com.wakebook.book.domain.HiddenBookSource;
 import com.wakebook.book.repository.HiddenBookRepository;
 import com.wakebook.common.ApiException;
 import com.wakebook.external.library.FakeBookDetailProvider;
@@ -65,6 +66,28 @@ class RecommendationExploreServiceTest {
     }
 
     @Test
+    void 후보_소개는_description을_우선하고_reason을_대체값으로_사용한다() {
+        HiddenBook described = promptBook("9788960867450", null, "정보나루에서 수집한 소개글");
+        HiddenBook fallback = promptBook("9999999999999", "기존 추천 이유", null);
+        when(hiddenBookRepository.findAllByLibraryCode(LIBRARY_CODE)).thenReturn(List.of(described, fallback));
+        fakeOpenAiClient.setResponse("""
+            {"results": [
+              {"isbn": "9788960867450", "relevance": 90, "reason": "이유1"},
+              {"isbn": "9999999999999", "relevance": 80, "reason": "이유2"}
+            ]}
+            """);
+
+        recommendationExploreService.explore(
+                new ExploreRequest("9788996991342", LIBRARY_CODE, "DEEPER")
+        );
+
+        assertThat(fakeOpenAiClient.lastUserPrompt())
+                .contains("소개: 정보나루에서 수집한 소개글")
+                .contains("소개: 기존 추천 이유")
+                .doesNotContain("소개: null");
+    }
+
+    @Test
     void 지원하지_않는_재탐색_유형이면_VALIDATION_001_예외() {
         assertThatThrownBy(() -> recommendationExploreService.explore(
                 new ExploreRequest("9788996991342", LIBRARY_CODE, "UNKNOWN_TYPE")
@@ -85,5 +108,13 @@ class RecommendationExploreServiceTest {
         assertThatThrownBy(() -> recommendationExploreService.explore(
                 new ExploreRequest("9788996991342", " ", "DEEPER")
         )).isInstanceOf(ApiException.class);
+    }
+
+    private static HiddenBook promptBook(String isbn, String reason, String description) {
+        return new HiddenBook(
+                isbn, LIBRARY_CODE, "부산광역시 금정도서관", "후보 도서", "저자",
+                "cover", 1, 80, reason, List.of("인간관계"),
+                HiddenBookSource.LIBRARY_API, "100.1", "자료실", description
+        );
     }
 }

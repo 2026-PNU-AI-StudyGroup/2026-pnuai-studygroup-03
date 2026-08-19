@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import tools.jackson.databind.ObjectMapper;
 import com.wakebook.book.domain.HiddenBook;
 import com.wakebook.book.repository.HiddenBookRepository;
+import com.wakebook.book.support.HiddenBookPromptSummary;
 import com.wakebook.common.ApiException;
 import com.wakebook.external.openai.OpenAiClient;
 import com.wakebook.recommendation.dto.RecommendationRequest;
@@ -121,18 +122,10 @@ public class RecommendationService {
             builder.append("- isbn: ").append(book.getIsbn())
                 .append(", 제목: ").append(book.getTitle())
                 .append(", 키워드: ").append(String.join(", ", book.getKeywords()))
-                .append(", 소개: ").append(book.getReason())
+                .append(", 소개: ").append(HiddenBookPromptSummary.resolve(book))
                 .append('\n');
         }
         return builder.toString();
-    }
-
-    /** 후보군을 만들 때 AI를 돌리지 않으므로, 프롬프트에는 정보나루 소개글 원문을 넣는다. */
-    private String bookSummary(HiddenBook book) {
-        if (book.getDescription() != null && !book.getDescription().isBlank()) {
-            return book.getDescription();
-        }
-        return book.getReason() != null ? book.getReason() : "";
     }
 
     private int clamp(Integer value) {

@@ -1,6 +1,7 @@
 package com.wakebook.curation.service;
 
 import com.wakebook.book.domain.HiddenBook;
+import com.wakebook.book.domain.HiddenBookSource;
 import com.wakebook.book.repository.HiddenBookRepository;
 import com.wakebook.common.ApiException;
 import com.wakebook.curation.dto.CurationGenerateRequest;
@@ -74,6 +75,29 @@ class CurationGenerationServiceTest {
     }
 
     @Test
+    void 후보_소개는_description을_우선하고_reason을_대체값으로_사용한다() {
+        User librarian = librarian(LIBRARY_CODE);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(librarian));
+        when(hiddenBookRepository.findAllByLibraryCode(LIBRARY_CODE)).thenReturn(List.of(
+                promptBook("9788960867450", null, "정보나루에서 수집한 소개글"),
+                promptBook("9999999999999", "기존 추천 이유", null)
+        ));
+        fakeOpenAiClient.setResponse("""
+            {"title": "큐레이션", "description": "설명", "hashtags": ["#주제"],
+             "books": [{"isbn": "9788960867450", "reason": "선정 이유"}]}
+            """);
+
+        curationGenerationService.generate(
+                "12", new CurationGenerateRequest("청년의 불안", null, null, null, 2, null, null)
+        );
+
+        assertThat(fakeOpenAiClient.lastUserPrompt())
+                .contains("소개: 정보나루에서 수집한 소개글")
+                .contains("소개: 기존 추천 이유")
+                .doesNotContain("소개: null");
+    }
+
+    @Test
     void 제외_키워드와_겹치는_후보는_추천에서_빠진다() {
         User librarian = librarian(LIBRARY_CODE);
         when(userRepository.findById(12L)).thenReturn(Optional.of(librarian));
@@ -118,6 +142,14 @@ class CurationGenerationServiceTest {
         return new HiddenBook(
                 isbn, LIBRARY_CODE, "부산광역시 금정도서관", title, "저자",
                 "cover", 1, 80, "이유", keywords
+        );
+    }
+
+    private static HiddenBook promptBook(String isbn, String reason, String description) {
+        return new HiddenBook(
+                isbn, LIBRARY_CODE, "부산광역시 금정도서관", "후보 도서", "저자",
+                "cover", 1, 80, reason, List.of("인간관계"),
+                HiddenBookSource.LIBRARY_API, "100.1", "자료실", description
         );
     }
 }
