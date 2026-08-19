@@ -41,7 +41,83 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'mysql', 'external'
+	}
+}
+
+tasks.register('mysqlTest', Test) {
+	description = 'Runs integration tests that require a dedicated MySQL database.'
+	group = 'verification'
+	def mysqlUrl = providers.gradleProperty('mysqlTestUrl')
+		.orElse(providers.environmentVariable('MYSQL_TEST_URL'))
+	def mysqlUsername = providers.gradleProperty('mysqlTestUsername')
+		.orElse(providers.environmentVariable('MYSQL_TEST_USERNAME'))
+	def mysqlPassword = providers.gradleProperty('mysqlTestPassword')
+		.orElse(providers.environmentVariable('MYSQL_TEST_PASSWORD'))
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'mysql'
+	}
+	maxParallelForks = 1
+	outputs.upToDateWhen { false }
+	doFirst {
+		if (!mysqlUrl.isPresent()) {
+			throw new GradleException('Set MYSQL_TEST_URL or -PmysqlTestUrl to a dedicated empty MySQL test database.')
+		}
+		def databaseName = new java.net.URI(mysqlUrl.get().substring('jdbc:'.length()))
+			.getPath()
+			.tokenize('/')
+			.last()
+		if (!databaseName.endsWith('_test')) {
+			throw new GradleException('The MySQL integration-test database name must end with _test.')
+		}
+		systemProperty 'MYSQL_TEST_URL', mysqlUrl.get()
+		if (mysqlUsername.isPresent()) {
+			systemProperty 'MYSQL_TEST_USERNAME', mysqlUsername.get()
+		}
+		if (mysqlPassword.isPresent()) {
+			systemProperty 'MYSQL_TEST_PASSWORD', mysqlPassword.get()
+		}
+	}
+}
+
+tasks.register('externalTest', Test) {
+	description = 'Runs the live external-service flow against a dedicated MySQL test database.'
+	group = 'verification'
+	def externalUrl = providers.gradleProperty('externalTestUrl')
+		.orElse(providers.environmentVariable('EXTERNAL_TEST_DB_URL'))
+	def externalUsername = providers.gradleProperty('externalTestUsername')
+		.orElse(providers.environmentVariable('EXTERNAL_TEST_DB_USERNAME'))
+	def externalPassword = providers.gradleProperty('externalTestPassword')
+		.orElse(providers.environmentVariable('EXTERNAL_TEST_DB_PASSWORD'))
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'external'
+	}
+	maxParallelForks = 1
+	outputs.upToDateWhen { false }
+	doFirst {
+		if (!externalUrl.isPresent()) {
+			throw new GradleException('Set EXTERNAL_TEST_DB_URL or -PexternalTestUrl to a dedicated MySQL test database.')
+		}
+		def databaseName = new java.net.URI(externalUrl.get().substring('jdbc:'.length()))
+			.getPath()
+			.tokenize('/')
+			.last()
+		if (!databaseName.endsWith('_test')) {
+			throw new GradleException('The external integration-test database name must end with _test.')
+		}
+		systemProperty 'EXTERNAL_TEST_DB_URL', externalUrl.get()
+		if (externalUsername.isPresent()) {
+			systemProperty 'EXTERNAL_TEST_DB_USERNAME', externalUsername.get()
+		}
+		if (externalPassword.isPresent()) {
+			systemProperty 'EXTERNAL_TEST_DB_PASSWORD', externalPassword.get()
+		}
+	}
 }
 
 tasks.named('bootRun') {

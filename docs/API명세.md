@@ -1,7 +1,7 @@
 # WakeBook API 명세서
 
-> Base URL: `http://localhost:8080/api`  
-> 형식: `application/json; charset=UTF-8`  
+> Base URL: `http://localhost:8080/api`
+> 형식: `application/json; charset=UTF-8`
 > 인증: 로그인 후 `Authorization: Bearer {accessToken}` 헤더를 사용합니다.
 
 ## 변경 이력
@@ -12,11 +12,10 @@
 - **6.3 `POST /librarian/curations`**: `isPublic`을 생략하면 비공개로 저장합니다.
 - **6.4 `PATCH /librarian/curations/{curationId}`**: `isPublic`을 생략하면 기존 공개 상태를 유지합니다.
 
-### 2026-08-19 — 최종보고서 기준 독서 시간 추천 복원
+### 2026-08-19 — 최종 회귀 검증 계약 정정
 
-- **4.2 `POST /recommendations`**: 최종보고서 4.1절에 맞춰 요청의 `readingTime`과 응답의 `timeMatch`를 복원했습니다.
-- `readingTime`은 필수이며 `SHORT`, `MEDIUM`, `LONG`, `SLOW` 중 하나를 사용합니다.
-- 최종 점수는 키워드 0.35, 목적 0.20, 분위기 0.15, 독서 시간 0.10, 도서 정보 품질 0.10, 발견 가치 0.10의 가중치를 사용합니다.
+- **4.2 `POST /recommendations`**: 최종 범위에서 제외한 독서 시간 입력을 명세에서도 제거했습니다. 요청은 `readingTime`, 응답은 `timeMatch`를 사용하지 않습니다.
+- **6.1 `GET /librarian/dashboard`**: 실제 응답에서 제거된 `exhibitionLoanRate`가 예시에 남아 있던 문제를 수정했습니다.
 
 ### 2026-08-15 (4) — 도서 상세를 알라딘 우선으로
 
@@ -302,7 +301,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 | 쿼리 | 타입 | 필수 | 설명 |
 |---|---|:---:|---|
-| libraryCode | String | O | 도서관정보나루 도서관 코드. 사서가 6.5로 업로드해둔 도서관이어야 후보가 나옵니다. |
+| libraryCode | String | O | 도서관정보나루 도서관 코드. 3.8 자동 산출 또는 6.5 CSV 업로드로 후보군이 준비된 도서관이어야 합니다. |
 
 ```json
 { "success": true, "data": { "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "author": "박상미", "cover": "https://...", "reason": "나를 지키면서 타인과 건강하게 연결되는 연습을 만나 보세요.", "description": "정보나루 소개글...", "libraryName": "부산광역시 강서도서관", "callNumber": "813.6-박51관", "shelfName": "[강서구]종합자료실", "source": "LIBRARY_API", "keywords": ["인간관계", "심리"] } }
@@ -324,9 +323,9 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 `GET /libraries` · 인증 불필요
 
-잠자는 도서 후보군(6.5로 업로드된 `hidden_books`)이 등록된 도서관만 반환합니다. 3.4/3.5/4.2/4.4에 넘길 `libraryCode`를
-이용자가 외울 수 없으므로, 프론트엔드는 이 목록에서 도서관을 고르게 합니다. 목록이 비어 있으면 아직 어떤 사서도
-장서 CSV를 올리지 않은 상태이며, 추천 기능 전체가 빈 결과를 반환합니다.
+잠자는 도서 후보군(`hidden_books`)이 등록된 도서관만 반환합니다. 후보군은 3.8의 정보나루 자동 산출 또는 6.5의
+사서 CSV 업로드로 만들 수 있습니다. 3.4/3.5/4.2/4.4에 넘길 `libraryCode`를 이용자가 외울 수 없으므로,
+프론트엔드는 이 목록에서 도서관을 고르게 합니다. 목록이 비어 있으면 아직 준비된 후보군이 없는 상태입니다.
 
 ```json
 {
@@ -396,7 +395,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 1. `loanItemSrch`(+`libCode`)로 그 도서관 대출 순위 상위 5,000권의 ISBN을 모읍니다.
 2. `itemSrch`(+`libCode`+기간)로 장서 목록을 훑으며 **순위에 없고 청구기호가 있는** 장서를 후보로 뽑습니다.
-3. 후보마다 `srchDtlList`로 소개글이 있는지 확인해 통과한 것만 저장합니다.
+3. 후보마다 알라딘 → 정보나루 → 카카오 순서로 도서 상세와 소개글을 보강하고, 품질 기준을 통과한 것만 저장합니다.
 
 수 분이 걸리므로 접수만 하고 작업 정보를 반환합니다. 같은 도서관 작업이 이미 돌고 있으면 `409 JOB_001`입니다.
 
@@ -417,7 +416,8 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 `GET /hidden-book-jobs/{jobId}` · 인증 필요
 
 `status`는 `PENDING` → `RUNNING` → `SUCCEEDED` 또는 `FAILED`로 바뀝니다.
-3.8과 6.5가 모두 이 API로 진행 상태를 알립니다.
+3.8과 6.5가 모두 이 API로 진행 상태를 알립니다. 작업을 만든 사용자만 조회할 수 있으며,
+다른 사용자의 작업 ID를 조회하면 `403 AUTH_002`를 반환합니다.
 
 ```json
 {
@@ -447,9 +447,9 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 ### 4.2 잠자는 도서 추천
 
-`POST /recommendations`
+`POST /recommendations` · 인증 필요
 
-선택 키워드, 독서 목적·분위기·예상 독서 시간을 반영해 잠자는 도서를 추천합니다.
+선택 키워드, 독서 목적과 분위기를 반영해 잠자는 도서를 추천합니다.
 
 ```json
 {
@@ -458,17 +458,15 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
   "keywords": ["인간관계", "심리"],
   "purpose": "마음의 위로",
   "mood": "따뜻한",
-  "readingTime": "MEDIUM",
   "limit": 6
 }
 ```
 
 | 필드 | 값 |
 |---|---|
-| libraryCode | 도서관정보나루 도서관 코드 **(필수 — 변경됨, 2026-07-29)**. 이 도서관에 업로드된 후보군(6.5)만 대상으로 추천합니다. |
+| libraryCode | 도서관정보나루 도서관 코드 **(필수 — 변경됨, 2026-07-29)**. 이 도서관에 저장된 후보군(3.8 또는 6.5)만 대상으로 추천합니다. |
 | purpose | `마음의 위로`, `새로운 관점`, `실용적인 해결책`, `깊이 있는 사유` |
 | mood | `따뜻한`, `담백한`, `유쾌한`, `사색적인` |
-| readingTime | 예상 독서 시간 **(필수 — 복원, 2026-08-19)**. `SHORT`(30분 이내), `MEDIUM`(1~2시간), `LONG`(주말 동안), `SLOW`(천천히 읽기) |
 | limit | 돌려받을 추천 수 **(선택 — 신규, 2026-08-15)**. 기본 9, 최대 30. 이전에는 후보군 전체를 반환했습니다. |
 
 ```json
@@ -476,7 +474,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
   "success": true,
   "data": [{
     "isbn": "9788960867450", "title": "관계에도 연습이 필요합니다", "author": "박상미", "cover": "https://...",
-    "score": 93, "keywordRelevance": 95, "purposeMatch": 92, "moodMatch": 90, "timeMatch": 88, "discoveryValue": 89,
+    "score": 93, "keywordRelevance": 95, "purposeMatch": 92, "moodMatch": 90, "discoveryValue": 89,
     "reason": "나를 지키면서 타인과 건강하게 연결되는 구체적인 연습법을 만나 보세요.",
     "keywords": ["인간관계", "심리", "자존감"],
     "libraryName": "부산광역시 강서도서관", "callNumber": "813.6-정45이B", "shelfName": "[강서구]종합자료실"
@@ -484,12 +482,11 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 }
 ```
 
-`score`는 `keywordRelevance × 0.35 + purposeMatch × 0.20 + moodMatch × 0.15 + timeMatch × 0.10 + 도서 정보 품질 × 0.10 + discoveryValue × 0.10`으로 계산합니다.
-`timeMatch`는 후보 도서의 제목·키워드·소개글을 근거로 AI가 선택한 독서 시간이나 속도와의 적합도를 평가한 값입니다. 페이지 수·글자 수 데이터가 없으므로 정확한 독서 소요 시간을 의미하지 않습니다.
+`score`는 `keywordRelevance × 0.45 + purposeMatch × 0.20 + moodMatch × 0.15 + 도서 정보 품질 × 0.10 + discoveryValue × 0.10`으로 계산합니다.
 
 ### 4.3 인기·잠자는 도서 비교
 
-`POST /recommendations/compare`
+`POST /recommendations/compare` · 인증 필요
 
 ```json
 { "popularBook": "9788996991342", "hiddenBook": "9788960867450" }
@@ -509,7 +506,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 ### 4.4 연관 조건 재탐색
 
-`POST /recommendations/explore`
+`POST /recommendations/explore` · 인증 필요
 
 ```json
 { "isbn": "9788960867450", "libraryCode": "121018", "type": "DEEPER" }
@@ -625,13 +622,13 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 `GET /librarian/dashboard`
 
-로그인한 사서의 `libraryCode`로 자기 도서관의 `hidden_books` 후보군을 찾아 집계합니다(별도 파라미터 불필요). `libraryCode`가 없는 계정은 `hiddenBookCount: 0`, `popularKeywords: []`로 응답합니다. `exhibitionLoanRate`는 대출 추적 데이터가 없어 현재 고정값(0)을 반환합니다(추후 실데이터 연동 예정).
+로그인한 사서의 `libraryCode`로 자기 도서관의 `hidden_books` 후보군을 찾아 집계합니다(별도 파라미터 불필요). `libraryCode`가 없는 계정은 `hiddenBookCount: 0`, `popularKeywords: []`로 응답합니다. 전시 이후 대출을 추적하는 데이터가 없어 `exhibitionLoanRate`는 응답하지 않습니다.
 
 ```json
 {
   "success": true,
   "data": {
-    "hiddenBookCount": 128, "monthlyCurationCount": 12, "exhibitionLoanRate": 86,
+    "hiddenBookCount": 128, "monthlyCurationCount": 12,
     "popularKeywords": ["청년", "불안", "관계"],
     "recentCurations": [{ "id": 5, "title": "괜찮지 않아도 괜찮은 우리에게", "bookCount": 5, "isPublic": true }]
   }
@@ -642,7 +639,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 `POST /librarian/curations/generate`
 
-`topic`만 필수이며, 나머지는 선택 입력입니다. 로그인한 사서의 `libraryCode`에 해당하는 `hidden_books` 후보군(6.5로 업로드된 데이터) 중에서 골라 추천하며, 후보가 없으면 `404 BOOK_001`을 반환합니다. 이 응답은 초안일 뿐 저장되지 않으며, 마음에 들면 6.3으로 저장합니다.
+`topic`만 필수이며, 나머지는 선택 입력입니다. 로그인한 사서의 `libraryCode`에 해당하는 `hidden_books` 후보군(3.8 자동 산출 또는 6.5 CSV 업로드 데이터) 중에서 골라 추천하며, 후보가 없으면 `404 BOOK_001`을 반환합니다. 이 응답은 초안일 뿐 저장되지 않으며, 마음에 들면 6.3으로 저장합니다.
 
 ```json
 {
@@ -706,7 +703,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 `POST /librarian/hidden-books/upload` · `multipart/form-data`
 
-사서가 [도서관 정보나루 오픈데이터](https://data4library.kr/openDataV)에서 자기 도서관의 "장서 대출목록" CSV를 다운받아 업로드하면, 그 도서관의 "잠자는 도서" 후보군(3.4/3.5/4.2/4.4가 추천 대상으로 쓰는 데이터)을 즉시 다시 산출합니다. 같은 `libraryCode`로 이미 저장돼 있던 이전 후보군은 삭제되고 새 결과로 교체됩니다(다른 도서관 데이터는 영향 없음).
+사서가 [도서관 정보나루 오픈데이터](https://data4library.kr/openDataV)에서 자기 도서관의 "장서 대출목록" CSV를 다운받아 업로드하면, 그 도서관의 "잠자는 도서" 후보군(3.4/3.5/4.2/4.4가 추천 대상으로 쓰는 데이터) 산출 작업을 접수합니다. 작업이 성공하면 같은 `libraryCode`의 이전 후보군을 새 결과로 교체하며, 다른 도서관 데이터에는 영향을 주지 않습니다.
 
 | 필드 | 타입 | 필수 | 설명 |
 |---|---|:---:|---|
@@ -740,7 +737,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 |---:|---|---|
 | 400 | `VALIDATION_001` | 요청값 누락 또는 형식 오류 |
 | 401 | `AUTH_001` | 인증 토큰 없음 또는 만료 |
-| 403 | `AUTH_002` | 역할 권한 없음 |
+| 403 | `AUTH_002` | 역할·소유권·소속 도서관 권한 없음 |
 | 404 | `BOOK_001` | 도서를 찾을 수 없음 |
 | 404 | `CURATION_001` | 큐레이션을 찾을 수 없음 |
 | 404 | `BOOKSHELF_001` | 컬렉션을 찾을 수 없음 |
@@ -751,6 +748,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 | 404 | `JOB_002` | 후보군 산출 작업을 찾을 수 없음 |
 | 409 | `JOB_003` | 최근 7일 안에 이미 산출한 도서관 |
 | 429 | `JOB_004` | 사용자당 하루 산출 횟수(3곳) 초과 |
+| 503 | `JOB_005` | 후보군 산출 작업 대기열 포화 |
 | 503 | `BOOK_003` | 정보나루 일일 호출 한도 초과(IP 미등록 시 500건) |
 | 409 | `AUTH_003` | 이미 사용 중인 이메일 |
 | 502 | `BOOK_002` | 정보나루 등 외부 도서 API 연동 실패 |

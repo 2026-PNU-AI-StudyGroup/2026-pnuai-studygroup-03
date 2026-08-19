@@ -20,6 +20,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -120,6 +121,24 @@ class HiddenBookCollectorTest {
 
         verify(jobService).succeed(eq(4L), eq("부산광역시 강서도서관"), eq(0), any());
         verify(poolWriter, org.mockito.Mockito.never()).replace(any(), any());
+    }
+
+    @Test
+    void 한_권의_외부_상세_조회가_실패해도_다음_책을_저장하고_작업을_성공으로_마친다() {
+        String failedIsbn = "9780000000001";
+        String savedIsbn = "9788960867450";
+        bookDetailProvider.failForIsbn(failedIsbn);
+        bookDetailProvider.setDetailForIsbn(savedIsbn, detail(savedIsbn));
+
+        collector.collectFromCsv(5L, LIBRARY_CODE, "부산광역시 금정도서관", List.of(
+            HiddenBookCandidate.fromCsv(failedIsbn, "조회 실패 도서", "저자", 0),
+            HiddenBookCandidate.fromCsv(savedIsbn, "관계에도 연습이 필요합니다", "박상미", 1)
+        ));
+
+        List<HiddenBook> saved = captureSaved();
+        assertThat(saved).extracting(HiddenBook::getIsbn).containsExactly(savedIsbn);
+        verify(jobService).succeed(eq(5L), eq("부산광역시 금정도서관"), eq(1), any());
+        verify(jobService, never()).fail(eq(5L), any());
     }
 
     private List<HiddenBook> captureSaved() {

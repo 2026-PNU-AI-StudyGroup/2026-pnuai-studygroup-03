@@ -1,8 +1,10 @@
 package com.wakebook.external.library;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class FakeBookDetailProvider implements BookDetailProvider {
 
@@ -10,12 +12,16 @@ public class FakeBookDetailProvider implements BookDetailProvider {
     private boolean empty = false;
     private BookDetail detail;
     private final Map<String, BookDetail> detailsByIsbn = new HashMap<>();
+    private final Set<String> failingIsbns = new HashSet<>();
     private int callCount = 0;
 
     @Override
     public Optional<BookDetail> fetch(String isbn) {
         this.lastIsbn = isbn;
         this.callCount++;
+        if (failingIsbns.contains(isbn)) {
+            throw new IllegalStateException("simulated external API failure");
+        }
         if (empty) {
             return Optional.empty();
         }
@@ -43,6 +49,10 @@ public class FakeBookDetailProvider implements BookDetailProvider {
 
     public void setDetailForIsbn(String isbn, BookDetail detail) {
         this.detailsByIsbn.put(isbn, detail);
+    }
+
+    public void failForIsbn(String isbn) {
+        this.failingIsbns.add(isbn);
     }
 
     public String lastIsbn() {
