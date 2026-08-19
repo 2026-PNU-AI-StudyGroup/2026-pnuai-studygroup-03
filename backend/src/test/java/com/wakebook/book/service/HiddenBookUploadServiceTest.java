@@ -13,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.charset.StandardCharsets;
@@ -130,6 +132,22 @@ class HiddenBookUploadServiceTest {
         assertThatThrownBy(() -> hiddenBookUploadService.upload("12", "121018", csvFile(CSV_HEADER)))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("ISBN");
+    }
+
+    @Test
+    void 대기열이_가득차_비동기_작업이_거절되면_작업을_실패로_기록하고_503을_반환한다() {
+        givenLibrarian(UserRole.LIBRARIAN, "121018");
+        HiddenBookJob job = new HiddenBookJob(
+            "121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L
+        );
+        when(jobService.create(eq("121018"), any(), any(), any(), eq(false))).thenReturn(job);
+        org.mockito.Mockito.doThrow(new TaskRejectedException("queue full"))
+            .when(collector).collectFromCsv(eq(job.getId()), eq("121018"), any(), any());
+
+        assertThatThrownBy(() -> hiddenBookUploadService.upload("12", null, csvFile(CSV_HEADER + CSV_ROW)))
+            .isInstanceOf(ApiException.class)
+            .satisfies(error -> assertThat(((ApiException) error).getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
+        verify(jobService).fail(job.getId(), "작업 대기열이 가득 찼습니다. 잠시 후 다시 시도해 주세요.");
     }
 
     private MockMultipartFile csvFile(String content) {

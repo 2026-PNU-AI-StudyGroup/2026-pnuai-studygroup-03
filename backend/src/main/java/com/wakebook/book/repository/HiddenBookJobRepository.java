@@ -18,5 +18,5 @@ public interface HiddenBookJobRepository extends JpaRepository<HiddenBookJob, Lo
         String libraryCode, HiddenBookJobStatus status, LocalDateTime createdAfter
     );
 
-    long countByRequestedByAndCreatedAtAfter(Long requestedBy, LocalDateTime createdAfter);
+    long countByRequestedByAndCreatedAtGreaterThanEqual(Long requestedBy, LocalDateTime createdAt);
 }

@@ -10,6 +10,7 @@ import com.wakebook.user.domain.User;
 import com.wakebook.user.domain.UserRole;
 import com.wakebook.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -65,7 +66,13 @@ public class HiddenBookUploadService {
         HiddenBookJob job = jobService.create(
             libraryCode, libraryName, HiddenBookSource.CSV_UPLOAD, librarian.getId(), false
         );
-        collector.collectFromCsv(job.getId(), libraryCode, libraryName, parsedRows);
+        try {
+            collector.collectFromCsv(job.getId(), libraryCode, libraryName, parsedRows);
+        } catch (TaskRejectedException e) {
+            // 작업은 이미 저장됐으므로, 큐 거절을 실패 상태로 기록해 다음 업로드가 막히지 않게 한다.
+            jobService.fail(job.getId(), "작업 대기열이 가득 찼습니다. 잠시 후 다시 시도해 주세요.");
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "JOB_005", "작업이 많습니다. 잠시 후 다시 시도해 주세요.");
+        }
         return job;
     }
 

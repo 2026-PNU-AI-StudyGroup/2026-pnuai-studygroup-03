@@ -4,14 +4,19 @@ import com.wakebook.book.domain.HiddenBookJob;
 import com.wakebook.book.domain.HiddenBookJobStatus;
 import com.wakebook.book.domain.HiddenBookSource;
 import com.wakebook.book.repository.HiddenBookJobRepository;
+import com.wakebook.book.repository.HiddenBookCollectionLockRepository;
 import com.wakebook.common.ApiException;
+import com.wakebook.common.exception.AuthenticationRequiredException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 작업 상태만 따로 짧은 트랜잭션으로 기록한다. 산출 작업 자체는 몇 분씩 걸리므로
@@ -26,17 +31,24 @@ public class HiddenBookJobService {
     /** 정보나루 일일 호출 한도를 지키기 위한 제한. 후보군은 자주 바뀌지 않아 재산출할 이유도 적다. */
     private static final int COOLDOWN_DAYS = 7;
     private static final int MAX_JOBS_PER_USER_PER_DAY = 3;
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final HiddenBookJobRepository jobRepository;
+    private final HiddenBookCollectionLockRepository collectionLockRepository;
 
-    public HiddenBookJobService(HiddenBookJobRepository jobRepository) {
+    public HiddenBookJobService(
+        HiddenBookJobRepository jobRepository,
+        HiddenBookCollectionLockRepository collectionLockRepository
+    ) {
         this.jobRepository = jobRepository;
+        this.collectionLockRepository = collectionLockRepository;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public HiddenBookJob create(
         String libraryCode, String libraryName, HiddenBookSource source, Long requestedBy, boolean applyLimits
     ) {
+        collectionLockRepository.lock(libraryCode);
         if (!jobRepository.findByLibraryCodeAndStatusIn(libraryCode, ACTIVE_STATUSES).isEmpty()) {
             throw new ApiException(
                 HttpStatus.CONFLICT, "JOB_001", "이 도서관의 후보군을 이미 만들고 있습니다. 잠시 후 다시 시도해 주세요."
@@ -65,9 +77,8 @@ public class HiddenBookJobService {
         if (requestedBy == null) {
             return;
         }
-        long today = jobRepository.countByRequestedByAndCreatedAtAfter(
-            requestedBy, LocalDateTime.now().minusDays(1)
-        );
+        LocalDateTime todayStart = LocalDate.now(SEOUL).atStartOfDay();
+        long today = jobRepository.countByRequestedByAndCreatedAtGreaterThanEqual(requestedBy, todayStart);
         if (today >= MAX_JOBS_PER_USER_PER_DAY) {
             throw new ApiException(
                 HttpStatus.TOO_MANY_REQUESTS, "JOB_004",
@@ -103,8 +114,30 @@ public class HiddenBookJobService {
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "JOB_002", "작업을 찾을 수 없습니다."));
     }
 
+    /** 작업 상태와 실패 메시지는 요청자에게만 보여 준다. */
+    @Transactional(readOnly = true)
+    public HiddenBookJob getForRequester(Long jobId, String authenticatedUserId) {
+        HiddenBookJob job = get(jobId);
+        if (!Objects.equals(job.getRequestedBy(), parseUserId(authenticatedUserId))) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "AUTH_002", "이 작업을 조회할 권한이 없습니다.");
+        }
+        return job;
+    }
+
     @Transactional(readOnly = true)
     public HiddenBookJob findLatestByLibrary(String libraryCode) {
         return jobRepository.findTopByLibraryCodeOrderByCreatedAtDesc(libraryCode).orElse(null);
+    }
+
+    private Long parseUserId(String authenticatedUserId) {
+        try {
+            long userId = Long.parseLong(authenticatedUserId);
+            if (userId <= 0) {
+                throw new AuthenticationRequiredException();
+            }
+            return userId;
+        } catch (NumberFormatException e) {
+            throw new AuthenticationRequiredException();
+        }
     }
 }

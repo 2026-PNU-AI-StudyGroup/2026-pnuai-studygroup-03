@@ -4,14 +4,18 @@ import com.wakebook.book.domain.HiddenBookJob;
 import com.wakebook.book.domain.HiddenBookJobStatus;
 import com.wakebook.book.domain.HiddenBookSource;
 import com.wakebook.book.repository.HiddenBookJobRepository;
+import com.wakebook.book.repository.HiddenBookCollectionLockRepository;
 import com.wakebook.common.ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,12 +39,14 @@ class HiddenBookJobServiceTest {
 
     @Mock
     private HiddenBookJobRepository jobRepository;
+    @Mock
+    private HiddenBookCollectionLockRepository collectionLockRepository;
 
     private HiddenBookJobService jobService;
 
     @BeforeEach
     void setUp() {
-        jobService = new HiddenBookJobService(jobRepository);
+        jobService = new HiddenBookJobService(jobRepository, collectionLockRepository);
         lenient().when(jobRepository.findByLibraryCodeAndStatusIn(any(), any())).thenReturn(List.of());
         lenient().when(jobRepository.findTopByLibraryCodeAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
             any(), any(), any())).thenReturn(Optional.empty());
@@ -70,12 +76,21 @@ class HiddenBookJobServiceTest {
 
     @Test
     void 하루_산출_횟수를_넘기면_JOB_004_예외() {
-        when(jobRepository.countByRequestedByAndCreatedAtAfter(eq(1L), any(LocalDateTime.class)))
+        when(jobRepository.countByRequestedByAndCreatedAtGreaterThanEqual(eq(1L), any(LocalDateTime.class)))
             .thenReturn(3L);
 
         assertThatThrownBy(() -> create(1L))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("하루에 만들 수 있는");
+    }
+
+    @Test
+    void 일일_한도는_최근_24시간이_아닌_한국_시간_자정부터_센다() {
+        create(1L);
+        ArgumentCaptor<LocalDateTime> startCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+
+        verify(jobRepository).countByRequestedByAndCreatedAtGreaterThanEqual(eq(1L), startCaptor.capture());
+        assertThat(startCaptor.getValue()).isEqualTo(LocalDate.now(ZoneId.of("Asia/Seoul")).atStartOfDay());
     }
 
     @Test
@@ -88,7 +103,31 @@ class HiddenBookJobServiceTest {
         assertThat(created.getStatus()).isEqualTo(HiddenBookJobStatus.PENDING);
         verify(jobRepository, never())
             .findTopByLibraryCodeAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(any(), any(), any());
-        verify(jobRepository, never()).countByRequestedByAndCreatedAtAfter(any(), any());
+        verify(jobRepository, never()).countByRequestedByAndCreatedAtGreaterThanEqual(any(), any());
+    }
+
+    @Test
+    void 작업_생성_전에_도서관별_DB_잠금을_획득한다() {
+        create(1L);
+
+        verify(collectionLockRepository).lock(LIBRARY_CODE);
+    }
+
+    @Test
+    void 요청자는_자신이_만든_작업만_조회할_수_있다() {
+        HiddenBookJob job = job();
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+
+        assertThat(jobService.getForRequester(1L, "1")).isSameAs(job);
+    }
+
+    @Test
+    void 다른_사용자의_작업_조회는_AUTH_002_예외() {
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job()));
+
+        assertThatThrownBy(() -> jobService.getForRequester(1L, "2"))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("조회할 권한");
     }
 
     private HiddenBookJob create(Long requestedBy) {
