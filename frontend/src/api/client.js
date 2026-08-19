@@ -58,6 +58,8 @@ export const api = {
   recommendations: (payload) => client.post('/recommendations', payload),
   compare: (popularBook, hiddenBook) => client.post('/recommendations/compare', { popularBook, hiddenBook }),
   explore: (payload) => client.post('/recommendations/explore', payload),
+  publicCurations: (params) => client.get('/curations', { params }),
+  publicCuration: (id) => client.get(`/curations/${id}`),
 
   // 2. 인증
   login: (payload) => client.post('/auth/login', payload),

@@ -6,6 +6,12 @@
 
 ## 변경 이력
 
+### 2026-08-19 — 공개 큐레이션 조회 및 공개 상태 기본값 보완
+
+- **4.5 `GET /curations`, `GET /curations/{curationId}`(신규)**: 인증 없이 공개 큐레이션의 목록과 상세를 조회할 수 있습니다. 비공개 큐레이션은 목록에서 제외되며 상세 조회 시 `404 CURATION_001`을 반환합니다.
+- **6.3 `POST /librarian/curations`**: `isPublic`을 생략하면 비공개로 저장합니다.
+- **6.4 `PATCH /librarian/curations/{curationId}`**: `isPublic`을 생략하면 기존 공개 상태를 유지합니다.
+
 ### 2026-08-19 — 최종보고서 기준 독서 시간 추천 복원
 
 - **4.2 `POST /recommendations`**: 최종보고서 4.1절에 맞춰 요청의 `readingTime`과 응답의 `timeMatch`를 복원했습니다.
@@ -529,6 +535,36 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 }
 ```
 
+### 4.5 공개 큐레이션 조회 -> 완료
+
+- `GET /curations?page=1&size=9`: 공개 큐레이션 목록을 최신순으로 조회합니다.
+- `GET /curations/{curationId}`: 공개 큐레이션의 도서 구성과 사서 코멘트를 조회합니다.
+
+목록의 `page` 기본값은 1이고 `size` 기본값은 9, 최댓값은 30입니다. 두 API 모두 인증이 필요하지 않으며 `isPublic=true`인 큐레이션만 반환합니다. 비공개 큐레이션 ID 또는 존재하지 않는 ID를 상세 조회하면 동일하게 `404 CURATION_001`을 반환합니다.
+
+목록 응답은 다음 페이지 형식을 사용합니다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": [{
+      "id": 5,
+      "title": "괜찮지 않아도 괜찮은 우리에게",
+      "description": "불안한 오늘을 지나가는 청년들을 위한 책",
+      "bookCount": 5,
+      "cover": "https://...",
+      "createdAt": "2026-08-19T12:00:00"
+    }],
+    "page": 1,
+    "totalPages": 1,
+    "totalElements": 1
+  }
+}
+```
+
+상세 응답은 6.3의 큐레이션 상세 응답과 같습니다.
+
 ## 5. 나의 책장 API
 
 모든 API는 인증이 필요합니다.
@@ -642,7 +678,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 - `GET /librarian/curations?page=1&size=10`: 내 큐레이션 목록 조회(응답은 3.1과 같은 페이지 형식)
 - `GET /librarian/curations/{curationId}`: 큐레이션 상세 조회
 
-저장 요청의 `hashtags`는 6.2 초안 응답에서만 쓰이는 값으로, 큐레이션 자체에는 저장되지 않습니다.
+저장 요청의 `hashtags`는 6.2 초안 응답에서만 쓰이는 값으로, 큐레이션 자체에는 저장되지 않습니다. `isPublic`은 선택값이며 생략하면 안전하게 비공개(`false`)로 저장됩니다.
 
 ```json
 { "title": "괜찮지 않아도 괜찮은 우리에게", "description": "...", "isPublic": true, "books": [{ "isbn": "9788960867450", "displayOrder": 1, "comment": "관계 불안을 다정하게 다룹니다." }] }
@@ -661,7 +697,7 @@ docs가 비었거나 페이지가 가득 차지 않은 경우는 **정상 종료
 
 ### 6.4 큐레이션 수정 및 삭제 -> 완료
 
-- `PATCH /librarian/curations/{curationId}`: 제목, 소개, 공개 여부, 도서 순서 수정(요청 형식은 6.3 저장과 동일하며, `books` 목록으로 기존 도서 구성을 전체 교체합니다)
+- `PATCH /librarian/curations/{curationId}`: 제목, 소개, 공개 여부, 도서 순서 수정(요청 형식은 6.3 저장과 동일하며, `books` 목록으로 기존 도서 구성을 전체 교체합니다. `isPublic`을 생략하면 기존 공개 상태를 유지합니다)
 - `DELETE /librarian/curations/{curationId}`: 큐레이션 삭제
 
 다른 사서가 만든 큐레이션에 접근하면 `404 CURATION_001`을 반환합니다.

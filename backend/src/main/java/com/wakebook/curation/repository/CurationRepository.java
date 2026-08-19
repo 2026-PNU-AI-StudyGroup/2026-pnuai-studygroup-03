@@ -15,6 +15,10 @@ public interface CurationRepository extends JpaRepository<Curation, Long> {
 
     Optional<Curation> findByIdAndUser_Id(Long id, Long userId);
 
+    Page<Curation> findAllByIsPublicTrueOrderByCreatedAtDesc(Pageable pageable);
+
+    Optional<Curation> findByIdAndIsPublicTrue(Long id);
+
     List<Curation> findTop5ByUser_IdOrderByCreatedAtDesc(Long userId);
 
     long countByUser_IdAndCreatedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);

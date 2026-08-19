@@ -10,6 +10,7 @@ import com.wakebook.curation.domain.CurationBook;
 import com.wakebook.curation.dto.CurationBookRequest;
 import com.wakebook.curation.dto.CurationResponse;
 import com.wakebook.curation.dto.CurationSummaryResponse;
+import com.wakebook.curation.dto.PublicCurationSummaryResponse;
 import com.wakebook.curation.dto.SaveCurationRequest;
 import com.wakebook.curation.repository.CurationRepository;
 import com.wakebook.external.library.BookDetail;
@@ -80,6 +81,7 @@ class CurationServiceTest {
 
         assertThat(response.id()).isEqualTo(5L);
         assertThat(response.title()).isEqualTo("괜찮지 않아도 괜찮은 우리에게");
+        assertThat(response.isPublic()).isTrue();
         assertThat(response.bookCount()).isEqualTo(1);
         assertThat(response.books()).singleElement().satisfies(item -> {
             assertThat(item.isbn()).isEqualTo("9788960867450");
@@ -87,6 +89,23 @@ class CurationServiceTest {
             assertThat(item.displayOrder()).isEqualTo(1);
         });
         verify(bookDetailProvider, never()).fetch(any());
+    }
+
+    @Test
+    void 공개_여부를_생략하면_비공개로_저장한다() {
+        User user = librarian(12L);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(curationRepository.save(any(Curation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CurationResponse response = curationService.create("12", new SaveCurationRequest(
+                "비공개 초안", null, null, null
+        ));
+
+        assertThat(response.isPublic()).isFalse();
+        ArgumentCaptor<Curation> captor = ArgumentCaptor.forClass(Curation.class);
+        verify(curationRepository).save(captor.capture());
+        assertThat(captor.getValue().isPublic()).isFalse();
     }
 
     @Test
@@ -159,6 +178,36 @@ class CurationServiceTest {
     }
 
     @Test
+    void 공개_큐레이션_목록만_최신순으로_조회한다() {
+        User user = librarian(12L);
+        Curation curation = curation(user, 5L, "공개 큐레이션");
+        PageRequest pageable = PageRequest.of(0, 9);
+        when(curationRepository.findAllByIsPublicTrueOrderByCreatedAtDesc(pageable))
+                .thenReturn(new PageImpl<>(List.of(curation), pageable, 1));
+
+        PageResponse<PublicCurationSummaryResponse> response =
+                curationService.getPublicCurations(1, 9);
+
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content()).singleElement().satisfies(item ->
+                assertThat(item.title()).isEqualTo("공개 큐레이션"));
+        verify(curationRepository).findAllByIsPublicTrueOrderByCreatedAtDesc(pageable);
+    }
+
+    @Test
+    void 비공개_큐레이션은_공개_상세에서_조회할_수_없다() {
+        when(curationRepository.findByIdAndIsPublicTrue(7L)).thenReturn(Optional.empty());
+
+        ApiException exception = catchThrowableOfType(
+                ApiException.class,
+                () -> curationService.getPublicCuration(7L)
+        );
+
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exception.getCode()).isEqualTo("CURATION_001");
+    }
+
+    @Test
     void 큐레이션을_수정하면_도서_구성이_전체_교체된다() {
         User user = librarian(12L);
         Curation curation = curation(user, 5L, "기존 제목");
@@ -180,6 +229,38 @@ class CurationServiceTest {
         assertThat(response.isPublic()).isFalse();
         assertThat(response.books()).singleElement().satisfies(item ->
                 assertThat(item.isbn()).isEqualTo("9999999999999"));
+    }
+
+    @Test
+    void 비공개_큐레이션을_공개로_전환한다() {
+        User user = librarian(12L);
+        Curation curation = curation(user, 5L, "기존 제목", false);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(curationRepository.findByIdAndUser_Id(5L, 12L)).thenReturn(Optional.of(curation));
+        when(curationRepository.saveAndFlush(any(Curation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CurationResponse response = curationService.update("12", 5L, new SaveCurationRequest(
+                "공개 제목", null, true, null
+        ));
+
+        assertThat(response.isPublic()).isTrue();
+    }
+
+    @Test
+    void 수정할_때_공개_여부를_생략하면_기존_값을_유지한다() {
+        User user = librarian(12L);
+        Curation curation = curation(user, 5L, "기존 제목", false);
+        when(userRepository.findById(12L)).thenReturn(Optional.of(user));
+        when(curationRepository.findByIdAndUser_Id(5L, 12L)).thenReturn(Optional.of(curation));
+        when(curationRepository.saveAndFlush(any(Curation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CurationResponse response = curationService.update("12", 5L, new SaveCurationRequest(
+                "수정 제목", null, null, null
+        ));
+
+        assertThat(response.isPublic()).isFalse();
     }
 
     @Test
@@ -212,7 +293,11 @@ class CurationServiceTest {
     }
 
     private static Curation curation(User user, Long id, String title) {
-        Curation curation = new Curation(user, title, null, true);
+        return curation(user, id, title, true);
+    }
+
+    private static Curation curation(User user, Long id, String title, boolean isPublic) {
+        Curation curation = new Curation(user, title, null, isPublic);
         ReflectionTestUtils.setField(curation, "id", id);
         return curation;
     }

@@ -13,6 +13,7 @@ function Header() {
         <NavLink to="/popular">인기 도서</NavLink>
         <NavLink to="/search">도서 검색</NavLink>
         <NavLink to="/today">오늘의 책</NavLink>
+        <NavLink to="/curations">큐레이션</NavLink>
         {user && <NavLink to="/bookshelf">나의 책장</NavLink>}
         {user?.role === 'LIBRARIAN' && <NavLink to="/librarian">사서 공간</NavLink>}
       </nav>

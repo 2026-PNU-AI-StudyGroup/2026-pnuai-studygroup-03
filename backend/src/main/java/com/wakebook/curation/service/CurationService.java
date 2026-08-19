@@ -10,6 +10,7 @@ import com.wakebook.curation.domain.CurationBook;
 import com.wakebook.curation.dto.CurationBookRequest;
 import com.wakebook.curation.dto.CurationResponse;
 import com.wakebook.curation.dto.CurationSummaryResponse;
+import com.wakebook.curation.dto.PublicCurationSummaryResponse;
 import com.wakebook.curation.dto.SaveCurationRequest;
 import com.wakebook.curation.repository.CurationRepository;
 import com.wakebook.external.library.BookDetail;
@@ -52,7 +53,7 @@ public class CurationService {
                 user,
                 request.title().strip(),
                 nullableStrip(request.description()),
-                request.isPublic() == null || request.isPublic()
+                Boolean.TRUE.equals(request.isPublic())
         );
         addBooks(curation, request.books());
 
@@ -76,6 +77,23 @@ public class CurationService {
         return CurationResponse.from(findOwnedCuration(curationId, userId));
     }
 
+    public PageResponse<PublicCurationSummaryResponse> getPublicCurations(int page, int size) {
+        int pageNumber = Math.max(1, page);
+        int pageSize = Math.max(1, Math.min(size, 30));
+        Page<Curation> result = curationRepository.findAllByIsPublicTrueOrderByCreatedAtDesc(
+                PageRequest.of(pageNumber - 1, pageSize)
+        );
+        List<PublicCurationSummaryResponse> content = result.getContent().stream()
+                .map(PublicCurationSummaryResponse::from)
+                .toList();
+        return PageResponse.of(content, pageNumber, pageSize, result.getTotalElements());
+    }
+
+    public CurationResponse getPublicCuration(Long curationId) {
+        return CurationResponse.from(curationRepository.findByIdAndIsPublicTrue(curationId)
+                .orElseThrow(CurationService::curationNotFound));
+    }
+
     @Transactional
     public CurationResponse update(String authenticatedUserId, Long curationId, SaveCurationRequest request) {
         Long userId = requireAuthenticatedUserId(authenticatedUserId);
@@ -83,7 +101,7 @@ public class CurationService {
         curation.update(
                 request.title().strip(),
                 nullableStrip(request.description()),
-                request.isPublic() == null || request.isPublic()
+                request.isPublic() == null ? curation.isPublic() : request.isPublic()
         );
         replaceBooks(curation, request.books());
 
@@ -138,11 +156,15 @@ public class CurationService {
 
     private Curation findOwnedCuration(Long curationId, Long userId) {
         return curationRepository.findByIdAndUser_Id(curationId, userId)
-                .orElseThrow(() -> new ApiException(
-                        HttpStatus.NOT_FOUND,
-                        "CURATION_001",
-                        "큐레이션을 찾을 수 없습니다."
-                ));
+                .orElseThrow(CurationService::curationNotFound);
+    }
+
+    private static ApiException curationNotFound() {
+        return new ApiException(
+                HttpStatus.NOT_FOUND,
+                "CURATION_001",
+                "큐레이션을 찾을 수 없습니다."
+        );
     }
 
     private User requireAuthenticatedUser(String authenticatedUserId) {

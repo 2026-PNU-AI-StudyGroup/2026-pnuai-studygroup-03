@@ -16,6 +16,8 @@ import BookDetailPage from './pages/BookDetailPage'
 import AuthPage from './pages/AuthPage'
 import Librarian from './pages/Librarian'
 import LibrarianOperations from './pages/LibrarianOperations'
+import Curations from './pages/Curations'
+import CurationDetail from './pages/CurationDetail'
 
 export default function App() {
   return (
@@ -38,6 +40,8 @@ export default function App() {
                 <Route path="/books/:isbn" element={<BookDetailPage />} />
                 <Route path="/today" element={<Today />} />
                 <Route path="/random" element={<Today random />} />
+                <Route path="/curations" element={<Curations />} />
+                <Route path="/curations/:curationId" element={<CurationDetail />} />
                 <Route path="/compare/:baseIsbn/:hiddenIsbn" element={<Compare />} />
                 <Route path="/bookshelf" element={<RequireAuth><Bookshelf /></RequireAuth>} />
                 <Route path="/librarian" element={<RequireLibrarian><Librarian /></RequireLibrarian>} />
