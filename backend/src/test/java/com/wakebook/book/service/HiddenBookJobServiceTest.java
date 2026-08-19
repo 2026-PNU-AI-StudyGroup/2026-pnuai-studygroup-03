@@ -13,11 +13,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.TimeZone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,6 +38,8 @@ import static org.mockito.Mockito.when;
 class HiddenBookJobServiceTest {
 
     private static final String LIBRARY_CODE = "121020";
+    private static final Instant KST_23_59_59 = Instant.parse("2026-08-19T14:59:59Z");
+    private static final Instant NEXT_KST_MIDNIGHT = Instant.parse("2026-08-19T15:00:00Z");
 
     @Mock
     private HiddenBookJobRepository jobRepository;
@@ -46,7 +50,7 @@ class HiddenBookJobServiceTest {
 
     @BeforeEach
     void setUp() {
-        jobService = new HiddenBookJobService(jobRepository, collectionLockRepository);
+        jobService = serviceAt(KST_23_59_59);
         lenient().when(jobRepository.findByLibraryCodeAndStatusIn(any(), any())).thenReturn(List.of());
         lenient().when(jobRepository.findTopByLibraryCodeAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
             any(), any(), any())).thenReturn(Optional.empty());
@@ -85,12 +89,62 @@ class HiddenBookJobServiceTest {
     }
 
     @Test
-    void 일일_한도는_최근_24시간이_아닌_한국_시간_자정부터_센다() {
-        create(1L);
-        ArgumentCaptor<LocalDateTime> startCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+    void JVM이_UTC여도_한국_시간_23시59분59초는_당일_한도로_계산한다() {
+        TimeZone originalTimeZone = TimeZone.getDefault();
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
 
-        verify(jobRepository).countByRequestedByAndCreatedAtGreaterThanEqual(eq(1L), startCaptor.capture());
-        assertThat(startCaptor.getValue()).isEqualTo(LocalDate.now(ZoneId.of("Asia/Seoul")).atStartOfDay());
+            HiddenBookJob created = create(1L);
+            ArgumentCaptor<LocalDateTime> startCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+            verify(jobRepository).countByRequestedByAndCreatedAtGreaterThanEqual(eq(1L), startCaptor.capture());
+
+            assertThat(startCaptor.getValue()).isEqualTo(LocalDateTime.of(2026, 8, 19, 0, 0));
+            assertThat(created.getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 8, 19, 23, 59, 59));
+            assertThat(created.getUpdatedAt()).isEqualTo(created.getCreatedAt());
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
+    }
+
+    @Test
+    void JVM이_UTC여도_한국_시간_0시는_다음날_한도로_계산한다() {
+        TimeZone originalTimeZone = TimeZone.getDefault();
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+            jobService = serviceAt(NEXT_KST_MIDNIGHT);
+
+            HiddenBookJob created = create(1L);
+            ArgumentCaptor<LocalDateTime> startCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+            verify(jobRepository).countByRequestedByAndCreatedAtGreaterThanEqual(eq(1L), startCaptor.capture());
+
+            assertThat(startCaptor.getValue()).isEqualTo(LocalDateTime.of(2026, 8, 20, 0, 0));
+            assertThat(created.getCreatedAt()).isEqualTo(LocalDateTime.of(2026, 8, 20, 0, 0));
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
+    }
+
+    @Test
+    void 쿨다운_기준도_같은_한국_시각을_사용한다() {
+        create(1L);
+        ArgumentCaptor<LocalDateTime> cutoffCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+
+        verify(jobRepository).findTopByLibraryCodeAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
+            eq(LIBRARY_CODE), eq(HiddenBookJobStatus.SUCCEEDED), cutoffCaptor.capture()
+        );
+        assertThat(cutoffCaptor.getValue()).isEqualTo(LocalDateTime.of(2026, 8, 12, 23, 59, 59));
+    }
+
+    @Test
+    void 상태_갱신_시각도_주입한_시계의_한국_시각을_사용한다() {
+        HiddenBookJob job = job();
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        jobService = serviceAt(Instant.parse("2026-08-19T15:00:05Z"));
+
+        jobService.start(1L, 20);
+
+        assertThat(job.getStatus()).isEqualTo(HiddenBookJobStatus.RUNNING);
+        assertThat(job.getUpdatedAt()).isEqualTo(LocalDateTime.of(2026, 8, 20, 0, 0, 5));
     }
 
     @Test
@@ -135,6 +189,17 @@ class HiddenBookJobServiceTest {
     }
 
     private HiddenBookJob job() {
-        return new HiddenBookJob(LIBRARY_CODE, "부산광역시 강서도서관", HiddenBookSource.LIBRARY_API, 1L);
+        return new HiddenBookJob(
+            LIBRARY_CODE, "부산광역시 강서도서관", HiddenBookSource.LIBRARY_API, 1L,
+            LocalDateTime.of(2026, 8, 19, 12, 0)
+        );
+    }
+
+    private HiddenBookJobService serviceAt(Instant instant) {
+        return new HiddenBookJobService(
+            jobRepository,
+            collectionLockRepository,
+            Clock.fixed(instant, ZoneOffset.UTC)
+        );
     }
 }

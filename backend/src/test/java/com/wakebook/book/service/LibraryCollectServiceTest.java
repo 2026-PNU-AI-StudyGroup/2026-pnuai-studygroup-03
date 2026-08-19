@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -147,6 +148,9 @@ class LibraryCollectServiceTest {
     }
 
     private HiddenBookJob job() {
-        return new HiddenBookJob(LIBRARY_CODE, null, HiddenBookSource.LIBRARY_API, USER_ID);
+        return new HiddenBookJob(
+            LIBRARY_CODE, null, HiddenBookSource.LIBRARY_API, USER_ID,
+            LocalDateTime.of(2026, 8, 19, 12, 0)
+        );
     }
 }

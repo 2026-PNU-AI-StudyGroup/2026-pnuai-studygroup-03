@@ -7,12 +7,14 @@ import com.wakebook.book.repository.HiddenBookJobRepository;
 import com.wakebook.book.repository.HiddenBookCollectionLockRepository;
 import com.wakebook.common.ApiException;
 import com.wakebook.common.exception.AuthenticationRequiredException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -35,13 +37,24 @@ public class HiddenBookJobService {
 
     private final HiddenBookJobRepository jobRepository;
     private final HiddenBookCollectionLockRepository collectionLockRepository;
+    private final Clock clock;
 
+    @Autowired
     public HiddenBookJobService(
         HiddenBookJobRepository jobRepository,
         HiddenBookCollectionLockRepository collectionLockRepository
     ) {
+        this(jobRepository, collectionLockRepository, Clock.systemUTC());
+    }
+
+    HiddenBookJobService(
+        HiddenBookJobRepository jobRepository,
+        HiddenBookCollectionLockRepository collectionLockRepository,
+        Clock clock
+    ) {
         this.jobRepository = jobRepository;
         this.collectionLockRepository = collectionLockRepository;
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -54,17 +67,20 @@ public class HiddenBookJobService {
                 HttpStatus.CONFLICT, "JOB_001", "이 도서관의 후보군을 이미 만들고 있습니다. 잠시 후 다시 시도해 주세요."
             );
         }
+        LocalDateTime requestedAt = seoulDateTime(clock.instant());
         // 사서가 자기 도서관 CSV를 올리는 건 스스로 정확한 데이터를 넣는 일이므로 제한하지 않는다.
         if (applyLimits) {
-            ensureNotRecentlyCollected(libraryCode);
-            ensureDailyQuota(requestedBy);
+            ensureNotRecentlyCollected(libraryCode, requestedAt);
+            ensureDailyQuota(requestedBy, requestedAt);
         }
-        return jobRepository.save(new HiddenBookJob(libraryCode, libraryName, source, requestedBy));
+        return jobRepository.save(new HiddenBookJob(
+            libraryCode, libraryName, source, requestedBy, requestedAt
+        ));
     }
 
-    private void ensureNotRecentlyCollected(String libraryCode) {
+    private void ensureNotRecentlyCollected(String libraryCode, LocalDateTime requestedAt) {
         jobRepository.findTopByLibraryCodeAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
-            libraryCode, HiddenBookJobStatus.SUCCEEDED, LocalDateTime.now().minusDays(COOLDOWN_DAYS)
+            libraryCode, HiddenBookJobStatus.SUCCEEDED, requestedAt.minusDays(COOLDOWN_DAYS)
         ).ifPresent(job -> {
             throw new ApiException(
                 HttpStatus.CONFLICT, "JOB_003",
@@ -73,11 +89,11 @@ public class HiddenBookJobService {
         });
     }
 
-    private void ensureDailyQuota(Long requestedBy) {
+    private void ensureDailyQuota(Long requestedBy, LocalDateTime requestedAt) {
         if (requestedBy == null) {
             return;
         }
-        LocalDateTime todayStart = LocalDate.now(SEOUL).atStartOfDay();
+        LocalDateTime todayStart = requestedAt.toLocalDate().atStartOfDay();
         long today = jobRepository.countByRequestedByAndCreatedAtGreaterThanEqual(requestedBy, todayStart);
         if (today >= MAX_JOBS_PER_USER_PER_DAY) {
             throw new ApiException(
@@ -90,22 +106,26 @@ public class HiddenBookJobService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void start(Long jobId, int totalCandidates) {
-        jobRepository.findById(jobId).ifPresent(job -> job.start(totalCandidates));
+        LocalDateTime updatedAt = seoulDateTime(clock.instant());
+        jobRepository.findById(jobId).ifPresent(job -> job.start(totalCandidates, updatedAt));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void progress(Long jobId, int processedCount, int savedCount) {
-        jobRepository.findById(jobId).ifPresent(job -> job.progress(processedCount, savedCount));
+        LocalDateTime updatedAt = seoulDateTime(clock.instant());
+        jobRepository.findById(jobId).ifPresent(job -> job.progress(processedCount, savedCount, updatedAt));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void succeed(Long jobId, String libraryName, int savedCount, String message) {
-        jobRepository.findById(jobId).ifPresent(job -> job.succeed(libraryName, savedCount, message));
+        LocalDateTime updatedAt = seoulDateTime(clock.instant());
+        jobRepository.findById(jobId).ifPresent(job -> job.succeed(libraryName, savedCount, message, updatedAt));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void fail(Long jobId, String message) {
-        jobRepository.findById(jobId).ifPresent(job -> job.fail(message));
+        LocalDateTime updatedAt = seoulDateTime(clock.instant());
+        jobRepository.findById(jobId).ifPresent(job -> job.fail(message, updatedAt));
     }
 
     @Transactional(readOnly = true)
@@ -139,5 +159,9 @@ public class HiddenBookJobService {
         } catch (NumberFormatException e) {
             throw new AuthenticationRequiredException();
         }
+    }
+
+    private static LocalDateTime seoulDateTime(Instant instant) {
+        return LocalDateTime.ofInstant(instant, SEOUL);
     }
 }

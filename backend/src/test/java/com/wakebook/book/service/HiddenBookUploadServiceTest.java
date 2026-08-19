@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,7 +60,10 @@ class HiddenBookUploadServiceTest {
     @Test
     void 업로드는_파싱만_하고_산출_작업을_비동기로_넘긴다() {
         givenLibrarian(UserRole.LIBRARIAN, "121018");
-        HiddenBookJob job = new HiddenBookJob("121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L);
+        HiddenBookJob job = new HiddenBookJob(
+            "121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L,
+            LocalDateTime.of(2026, 8, 19, 12, 0)
+        );
         // 사서의 CSV 업로드는 스스로 정확한 데이터를 넣는 일이라 쿨다운·일일 제한을 적용하지 않는다.
         when(jobService.create(
             eq("121018"), eq("부산광역시 금정도서관"), eq(HiddenBookSource.CSV_UPLOAD), any(), eq(false)
@@ -80,7 +84,10 @@ class HiddenBookUploadServiceTest {
     void libraryCode를_생략하면_사서의_소속_도서관으로_접수한다() {
         givenLibrarian(UserRole.LIBRARIAN, "121018");
         when(jobService.create(eq("121018"), any(), any(), any(), eq(false)))
-            .thenReturn(new HiddenBookJob("121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L));
+            .thenReturn(new HiddenBookJob(
+                "121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L,
+                LocalDateTime.of(2026, 8, 19, 12, 0)
+            ));
 
         hiddenBookUploadService.upload("12", null, csvFile(CSV_HEADER + CSV_ROW));
 
@@ -138,7 +145,8 @@ class HiddenBookUploadServiceTest {
     void 대기열이_가득차_비동기_작업이_거절되면_작업을_실패로_기록하고_503을_반환한다() {
         givenLibrarian(UserRole.LIBRARIAN, "121018");
         HiddenBookJob job = new HiddenBookJob(
-            "121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L
+            "121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L,
+            LocalDateTime.of(2026, 8, 19, 12, 0)
         );
         when(jobService.create(eq("121018"), any(), any(), any(), eq(false))).thenReturn(job);
         org.mockito.Mockito.doThrow(new TaskRejectedException("queue full"))

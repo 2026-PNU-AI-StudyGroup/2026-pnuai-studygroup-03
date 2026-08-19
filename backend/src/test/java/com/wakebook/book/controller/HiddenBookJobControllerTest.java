@@ -8,6 +8,8 @@ import com.wakebook.common.response.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -20,7 +22,10 @@ class HiddenBookJobControllerTest {
     void 작업_조회는_인증된_jwt_subject를_권한_검증에_전달한다() {
         HiddenBookJobService jobService = mock(HiddenBookJobService.class);
         HiddenBookJobController controller = new HiddenBookJobController(jobService);
-        HiddenBookJob job = new HiddenBookJob("121020", null, HiddenBookSource.LIBRARY_API, 7L);
+        HiddenBookJob job = new HiddenBookJob(
+                "121020", null, HiddenBookSource.LIBRARY_API, 7L,
+                LocalDateTime.of(2026, 8, 19, 12, 0)
+        );
         Jwt jwt = Jwt.withTokenValue("access-token").header("alg", "HS256").subject("7").build();
         when(jobService.getForRequester(5L, "7")).thenReturn(job);
 

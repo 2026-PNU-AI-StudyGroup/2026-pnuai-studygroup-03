@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /** 후보군 산출 작업의 진행 상태. 요청 안에서 끝나지 않는 작업이라 별도로 추적한다. */
 @Entity
@@ -61,45 +62,50 @@ public class HiddenBookJob {
     protected HiddenBookJob() {
     }
 
-    public HiddenBookJob(String libraryCode, String libraryName, HiddenBookSource source, Long requestedBy) {
+    public HiddenBookJob(
+        String libraryCode,
+        String libraryName,
+        HiddenBookSource source,
+        Long requestedBy,
+        LocalDateTime createdAt
+    ) {
         this.libraryCode = libraryCode;
         this.requestedBy = requestedBy;
         this.libraryName = libraryName;
         this.source = source;
         this.status = HiddenBookJobStatus.PENDING;
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+        this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
+        this.updatedAt = createdAt;
     }
 
-    public void start(int totalCandidates) {
+    public void start(int totalCandidates, LocalDateTime updatedAt) {
         this.status = HiddenBookJobStatus.RUNNING;
         this.totalCandidates = totalCandidates;
-        touch();
+        touch(updatedAt);
     }
 
-    public void progress(int processedCount, int savedCount) {
+    public void progress(int processedCount, int savedCount, LocalDateTime updatedAt) {
         this.processedCount = processedCount;
         this.savedCount = savedCount;
-        touch();
+        touch(updatedAt);
     }
 
-    public void succeed(String libraryName, int savedCount, String message) {
+    public void succeed(String libraryName, int savedCount, String message, LocalDateTime updatedAt) {
         this.libraryName = libraryName;
         this.savedCount = savedCount;
         this.status = HiddenBookJobStatus.SUCCEEDED;
         this.message = truncate(message);
-        touch();
+        touch(updatedAt);
     }
 
-    public void fail(String message) {
+    public void fail(String message, LocalDateTime updatedAt) {
         this.status = HiddenBookJobStatus.FAILED;
         this.message = truncate(message);
-        touch();
+        touch(updatedAt);
     }
 
-    private void touch() {
-        this.updatedAt = LocalDateTime.now();
+    private void touch(LocalDateTime updatedAt) {
+        this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
     }
 
     private static String truncate(String value) {
@@ -147,5 +153,13 @@ public class HiddenBookJob {
 
     public String getMessage() {
         return message;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 }
