@@ -141,7 +141,7 @@ class HiddenBookUploadServiceTest {
     }
 
     @Test
-    void 대기열이_가득차면_작업을_실패로_기록하고_503을_반환한다() {
+    void 대기열이_가득차_비동기_작업이_거절되면_작업을_실패로_기록하고_503을_반환한다() {
         givenLibrarian(UserRole.LIBRARIAN, "121018");
         HiddenBookJob job = new HiddenBookJob(
             "121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L, LocalDateTime.now()

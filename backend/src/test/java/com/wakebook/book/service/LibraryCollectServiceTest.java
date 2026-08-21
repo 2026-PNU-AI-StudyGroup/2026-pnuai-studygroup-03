@@ -123,7 +123,7 @@ class LibraryCollectServiceTest {
     }
 
     @Test
-    void 대기열이_가득차면_작업을_실패로_기록하고_503을_반환한다() {
+    void 대기열이_가득차_비동기_작업이_거절되면_작업을_실패로_기록하고_503을_반환한다() {
         HiddenBookJob job = job();
         when(hiddenBookRepository.findTopByLibraryCode(LIBRARY_CODE)).thenReturn(Optional.empty());
         when(jobService.create(anyString(), any(), any(), anyLong(), anyBoolean())).thenReturn(job);

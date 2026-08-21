@@ -9,13 +9,15 @@ import com.wakebook.common.ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
@@ -87,6 +89,15 @@ class HiddenBookJobServiceTest {
     }
 
     @Test
+    void 일일_한도는_최근_24시간이_아닌_한국_시간_자정부터_센다() {
+        create(1L);
+        ArgumentCaptor<LocalDateTime> startCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+
+        verify(jobRepository).countByRequestedByAndCreatedAtGreaterThanEqual(eq(1L), startCaptor.capture());
+        assertThat(startCaptor.getValue()).isEqualTo(LocalDate.now(ZoneId.of("Asia/Seoul")).atStartOfDay());
+    }
+
+    @Test
     void 제한을_적용하지_않는_CSV_업로드는_쿨다운과_일일_횟수를_확인하지_않는다() {
         HiddenBookJob created = jobService.create(
             LIBRARY_CODE, "부산광역시 강서도서관", HiddenBookSource.CSV_UPLOAD, 1L, false
@@ -114,7 +125,22 @@ class HiddenBookJobServiceTest {
     }
 
     @Test
-    void 다른_사용자의_작업은_조회할_수_없다() {
+    void 작업_생성_전에_도서관별_DB_잠금을_획득한다() {
+        create(1L);
+
+        verify(collectionLockRepository).lock(LIBRARY_CODE);
+    }
+
+    @Test
+    void 요청자는_자신이_만든_작업만_조회할_수_있다() {
+        HiddenBookJob job = job();
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+
+        assertThat(jobService.getForRequester(1L, "1")).isSameAs(job);
+    }
+
+    @Test
+    void 다른_사용자의_작업_조회는_AUTH_002_예외() {
         when(jobRepository.findById(1L)).thenReturn(Optional.of(job()));
 
         assertThatThrownBy(() -> jobService.getForRequester(1L, "2"))

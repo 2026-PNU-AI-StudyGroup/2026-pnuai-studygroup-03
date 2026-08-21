@@ -64,10 +64,9 @@ public class LibraryCollectService {
         try {
             collector.collectFromLibraryApi(job.getId(), validated);
         } catch (TaskRejectedException e) {
+            // 작업은 REQUIRES_NEW로 이미 저장됐다. 큐가 찼다면 PENDING으로 남기지 않아야 재시도가 가능하다.
             jobService.fail(job.getId(), "작업 대기열이 가득 찼습니다. 잠시 후 다시 시도해 주세요.");
-            throw new ApiException(
-                HttpStatus.SERVICE_UNAVAILABLE, "JOB_005", "작업이 많습니다. 잠시 후 다시 시도해 주세요."
-            );
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "JOB_005", "작업이 많습니다. 잠시 후 다시 시도해 주세요.");
         }
         return job;
     }
