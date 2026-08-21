@@ -12,6 +12,7 @@ import com.wakebook.user.domain.User;
 import com.wakebook.user.domain.UserRole;
 import com.wakebook.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -60,7 +61,14 @@ public class LibraryCollectService {
         HiddenBookJob job = jobService.create(
             validated, null, HiddenBookSource.LIBRARY_API, userId, true
         );
-        collector.collectFromLibraryApi(job.getId(), validated);
+        try {
+            collector.collectFromLibraryApi(job.getId(), validated);
+        } catch (TaskRejectedException e) {
+            jobService.fail(job.getId(), "작업 대기열이 가득 찼습니다. 잠시 후 다시 시도해 주세요.");
+            throw new ApiException(
+                HttpStatus.SERVICE_UNAVAILABLE, "JOB_005", "작업이 많습니다. 잠시 후 다시 시도해 주세요."
+            );
+        }
         return job;
     }
 

@@ -44,6 +44,9 @@ export const api = {
   bookDetail: (isbn, region) => client.get(`/books/${isbn}`, { params: region ? { region } : undefined }),
   todayBook: (libraryCode) => client.get('/books/today', { params: { libraryCode } }),
   randomBook: (libraryCode) => client.get('/books/random', { params: { libraryCode } }),
+  dailyTrends: (libraryCode, date) => client.get('/trends/daily', {
+    params: { libraryCode, ...(date ? { date } : {}) },
+  }),
   libraries: () => client.get('/libraries'),
   libraryDirectory: (region) => client.get('/libraries/directory', { params: { region } }),
   // 저장된 후보군을 그대로 읽는다. AI도 정보나루도 호출하지 않는다.
@@ -58,6 +61,8 @@ export const api = {
   recommendations: (payload) => client.post('/recommendations', payload),
   compare: (popularBook, hiddenBook) => client.post('/recommendations/compare', { popularBook, hiddenBook }),
   explore: (payload) => client.post('/recommendations/explore', payload),
+  publicCurations: (params) => client.get('/curations', { params }),
+  publicCuration: (id) => client.get(`/curations/${id}`),
 
   // 2. 인증
   login: (payload) => client.post('/auth/login', payload),
@@ -76,6 +81,9 @@ export const api = {
 
   // 6. 사서
   librarianDashboard: () => client.get('/librarian/dashboard'),
+  librarianDailyTrends: () => client.get('/librarian/trends/daily'),
+  refreshDailyTrends: (force = false) => client.post('/librarian/trends/refresh', { force }),
+  trendBatch: (batchId) => client.get(`/librarian/trends/batches/${batchId}`),
   generateCuration: (payload) => client.post('/librarian/curations/generate', payload),
   saveCuration: (payload) => client.post('/librarian/curations', payload),
   curations: (params) => client.get('/librarian/curations', { params }),

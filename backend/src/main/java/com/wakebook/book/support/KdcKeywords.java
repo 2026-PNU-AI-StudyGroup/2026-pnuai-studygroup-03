@@ -15,11 +15,13 @@ public final class KdcKeywords {
     private KdcKeywords() {
     }
 
-    public static List<String> from(String className) {
-        if (className == null || className.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(className.split(">"))
+    public static List<String> from(String className, String kdcCode) {
+        java.util.stream.Stream<String> names = className == null ? java.util.stream.Stream.empty()
+            : Arrays.stream(className.split(">"));
+        KdcCategory category = KdcCategory.from(kdcCode, className, null);
+        java.util.stream.Stream<String> categoryName = category == KdcCategory.UNKNOWN
+            ? java.util.stream.Stream.empty() : java.util.stream.Stream.of(category.label());
+        return java.util.stream.Stream.concat(categoryName, names)
             .map(String::trim)
             .filter(part -> !part.isBlank())
             .distinct()

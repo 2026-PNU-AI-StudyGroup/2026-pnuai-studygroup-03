@@ -20,7 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 외부 API 호출 실패는 후보 하나만 건너뛰고 업로드 전체를 실패시키지 않는다(목차 조회용
  * AladinTableOfContentsProvider와 같은 방침).
  *
- * 알라딘·정보나루가 모두 실패했을 때 보는 마지막 폴백이다({@link com.wakebook.external.library.FallbackBookDetailProvider}).
+ * 후보군 도서 상세의 1차 공급자다. 카카오 ISBN 조회로 상세를 먼저 채워
+ * 정보나루의 작은 일일 호출량이 후보군 생성에 소진되지 않게 한다.
  * KAKAO_API_KEY가 없으면 호출하지 않고 비어 있는 결과를 돌려주므로, 키를 설정하지 않은 환경에서도
  * 기존 동작 그대로 동작한다.
  */

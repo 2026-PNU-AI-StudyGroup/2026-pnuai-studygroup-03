@@ -11,12 +11,23 @@ public record HiddenBookCandidate(
     String author,
     String cover,
     long loanCount,
+    String kdcCode,
     String className,
     String callNumber,
     String shelfName
 ) {
 
+    public static HiddenBookCandidate fromCsv(
+        String isbn, String title, String author, long loanCount, String kdcCode
+    ) {
+        return new HiddenBookCandidate(isbn, title, author, null, loanCount, kdcCode, null, null, null);
+    }
+
     public static HiddenBookCandidate fromCsv(String isbn, String title, String author, long loanCount) {
-        return new HiddenBookCandidate(isbn, title, author, null, loanCount, null, null, null);
+        return fromCsv(isbn, title, author, loanCount, null);
+    }
+
+    public com.wakebook.book.support.KdcCategory kdcCategory() {
+        return com.wakebook.book.support.KdcCategory.from(kdcCode, className, callNumber);
     }
 }

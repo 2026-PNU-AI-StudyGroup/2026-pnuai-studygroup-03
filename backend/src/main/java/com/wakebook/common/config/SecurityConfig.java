@@ -36,7 +36,9 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/books/**", "/libraries/**").permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET, "/books/**", "/libraries/**", "/trends/**", "/curations/**"
+                        ).permitAll()
                         // 서비스의 진입점인 AI 키워드 탐색을 로그인 뒤에 숨기지 않는다.
                         .requestMatchers(HttpMethod.POST, "/ai/keywords").permitAll()
                         .requestMatchers("/librarian/**").hasRole("LIBRARIAN")

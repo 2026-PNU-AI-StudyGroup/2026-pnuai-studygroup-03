@@ -49,7 +49,8 @@ export default function Discover() {
   const [purpose, setPurpose] = useState(PURPOSES[0])
   const [mood, setMood] = useState(MOODS[0])
   const [results, setResults] = useState(null)
-  const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const [resultCriteria, setResultCriteria] = useState(null)
+  const [visibleLimit, setVisibleLimit] = useState(DEFAULT_LIMIT)
   const [message, setMessage] = useState('')
   const [shelfMessage, setShelfMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -57,6 +58,7 @@ export default function Discover() {
   useEffect(() => {
     setBaseBook(null)
     setResults(null)
+    setResultCriteria(null)
     api.bookDetail(isbn)
       .then((book) => { setBaseBook(book); setBaseError('') })
       .catch((err) => setBaseError(errorMessage(err, '기준 도서 정보를 불러오지 못했습니다.')))
@@ -81,21 +83,34 @@ export default function Discover() {
       current.includes(keyword) ? current.filter((item) => item !== keyword) : [...current, keyword])
   }
 
-  const requestRecommendations = async (nextLimit = DEFAULT_LIMIT) => {
+  const requestRecommendations = async () => {
     if (!user) return setMessage('추천을 받으려면 먼저 로그인해 주세요.')
     if (!libraryCode) return setMessage('추천을 받을 도서관을 먼저 선택해 주세요.')
     if (!selectedKeywords.length) return setMessage('키워드를 하나 이상 선택해 주세요.')
 
     setLoading(true)
     setMessage('')
+    const requestedCriteria = {
+      keywords: [...selectedKeywords],
+      purpose,
+      mood,
+      libraryCode,
+      libraryName: library?.libraryName || '선택한 도서관',
+    }
     try {
       const response = await api.recommendations({
-        isbn, libraryCode, keywords: selectedKeywords, purpose, mood, limit: nextLimit,
+        isbn,
+        libraryCode: requestedCriteria.libraryCode,
+        keywords: requestedCriteria.keywords,
+        purpose: requestedCriteria.purpose,
+        mood: requestedCriteria.mood,
+        limit: MORE_LIMIT,
       })
       setResults(response)
-      setLimit(nextLimit)
+      setResultCriteria(requestedCriteria)
+      setVisibleLimit(DEFAULT_LIMIT)
       if (!response.length) {
-        setMessage(`${library?.libraryName || '선택한 도서관'}에 등록된 잠자는 도서 후보가 없습니다. 도서관을 바꾸거나 '우리 동네 도서관 추가하기'로 후보군을 만들어 보세요.`)
+        setMessage(`${requestedCriteria.libraryName}의 후보군에서 선택한 키워드와 독자층에 맞는 잠자는 책을 찾지 못했습니다. 키워드나 독서 조건을 바꿔 다시 시도해 주세요.`)
       }
     } catch (err) {
       setResults(null)
@@ -149,7 +164,7 @@ export default function Discover() {
             <span>
               <b>{selectedKeywords.map((keyword) => `#${keyword}`).join(' ') || '키워드 미선택'}</b> · {purpose} · {mood}
             </span>
-            <button onClick={() => requestRecommendations(DEFAULT_LIMIT)} disabled={loading || !user}>
+            <button onClick={requestRecommendations} disabled={loading || !user}>
               {loading ? 'AI 추천 생성 중...' : '잠자는 책 추천받기'} <ArrowRight size={15} />
             </button>
           </div>
@@ -163,8 +178,8 @@ export default function Discover() {
           <div className="result-heading">
             <div>
               <p className="eyebrow"><span /> RECOMMENDATION RESULT</p>
-              <h2><em>{selectedKeywords.map((keyword) => `#${keyword}`).join(' ')}</em>에 어울리는 잠자는 책</h2>
-              <p>{library?.libraryName}에서 관련성은 높지만 대출이 적었던 책을 AI가 골라냈어요.</p>
+              <h2><em>{resultCriteria?.keywords.map((keyword) => `#${keyword}`).join(' ')}</em>에 어울리는 잠자는 책</h2>
+              <p>{resultCriteria?.libraryName}에서 관련성은 높지만 대출이 적었던 책을 AI가 골라냈어요.</p>
             </div>
             <strong>{results.length}권 발견</strong>
           </div>
@@ -172,7 +187,7 @@ export default function Discover() {
           <Notice>{shelfMessage}</Notice>
 
           <div className="recommend-cards">
-            {results.map((book) => (
+            {results.slice(0, visibleLimit).map((book) => (
               <RecommendCard
                 key={book.isbn}
                 book={book}
@@ -188,8 +203,8 @@ export default function Discover() {
             ))}
           </div>
 
-          {limit === DEFAULT_LIMIT && results.length >= DEFAULT_LIMIT && (
-            <button className="secondary-button more-button" onClick={() => requestRecommendations(MORE_LIMIT)} disabled={loading}>
+          {visibleLimit === DEFAULT_LIMIT && results.length > DEFAULT_LIMIT && (
+            <button className="secondary-button more-button" onClick={() => setVisibleLimit(MORE_LIMIT)}>
               추천 더 보기 <ArrowRight size={15} />
             </button>
           )}

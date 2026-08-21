@@ -4,20 +4,30 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import tools.jackson.databind.ObjectMapper;
 import com.wakebook.book.domain.HiddenBook;
 import com.wakebook.book.repository.HiddenBookRepository;
+import com.wakebook.book.support.HiddenBookPromptSummary;
 import com.wakebook.common.ApiException;
+import com.wakebook.common.config.CacheConfig;
 import com.wakebook.external.library.BookDetail;
 import com.wakebook.external.library.BookDetailProvider;
 import com.wakebook.external.openai.OpenAiClient;
 import com.wakebook.recommendation.dto.ExploreRequest;
 import com.wakebook.recommendation.dto.ExploreResponse;
 import com.wakebook.recommendation.support.ExploreType;
+import com.wakebook.recommendation.support.ReadingAudienceClassifier;
+import com.wakebook.recommendation.support.ReadingAudienceClassifier.Audience;
 import com.wakebook.recommendation.support.RecommendationScorer;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -27,6 +37,16 @@ import java.util.stream.Collectors;
 public class RecommendationExploreService {
 
     private static final int RESULT_LIMIT = 9;
+    private static final int AI_CANDIDATE_LIMIT = 50;
+    private static final int MAX_DESCRIPTION_LENGTH = 400;
+    private static final int MIN_RELEVANCE = 35;
+    private static final int MIN_AI_RELEVANCE_WITHOUT_SERVER_MATCH = 70;
+    private static final double PREFERRED_SERVER_RELEVANCE = .05;
+    private static final Pattern TOKEN_PATTERN = Pattern.compile("[가-힣A-Za-z0-9]{2,}");
+    private static final Set<String> STOP_WORDS = Set.of(
+        "그리고", "그러나", "대한", "위한", "통해", "있는", "하는", "한다", "책은", "도서", "이야기",
+        "작가", "저자", "우리", "그의", "그녀", "에서", "으로", "에게", "까지", "보다", "다시", "새로운"
+    );
 
     private final HiddenBookRepository hiddenBookRepository;
     private final BookDetailProvider bookDetailProvider;
@@ -45,6 +65,7 @@ public class RecommendationExploreService {
         this.objectMapper = objectMapper;
     }
 
+    @Cacheable(cacheNames = CacheConfig.AI_EXPLORE, key = "#request", unless = "#result == null")
     public List<ExploreResponse> explore(ExploreRequest request) {
         if (request.isbn() == null || request.isbn().isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_001", "isbn은 필수입니다.");
@@ -63,27 +84,91 @@ public class RecommendationExploreService {
         if (pool.isEmpty()) {
             return List.of();
         }
+        Audience sourceAudience = ReadingAudienceClassifier.source(baseBook);
+        List<ExploreCandidate> candidates = shortlist(baseBook, sourceAudience, type, pool);
+        if (candidates.isEmpty()) return List.of();
 
         String systemPrompt = buildSystemPrompt(type);
-        String userPrompt = buildUserPrompt(baseBook, pool);
+        String userPrompt = buildUserPrompt(baseBook, sourceAudience, candidates);
         String content = openAiClient.complete(systemPrompt, userPrompt);
         Map<String, AiScorePayload> scoresByIsbn = parseScores(content);
 
         long minLoanCount = pool.stream().mapToLong(HiddenBook::getLoanCount).min().orElse(0);
         long maxLoanCount = pool.stream().mapToLong(HiddenBook::getLoanCount).max().orElse(0);
 
-        return pool.stream()
-            .map(book -> toResponse(book, scoresByIsbn.get(book.getIsbn()), minLoanCount, maxLoanCount))
+        return candidates.stream()
+            .filter(candidate -> scoresByIsbn.containsKey(candidate.book().getIsbn()))
+            .filter(candidate -> isRelevant(candidate, scoresByIsbn.get(candidate.book().getIsbn())))
+            .map(candidate -> toResponse(
+                candidate, scoresByIsbn.get(candidate.book().getIsbn()), minLoanCount, maxLoanCount
+            ))
             .filter(response -> response.relevance() >= MIN_RELEVANCE)
             .sorted(Comparator.comparingInt(ExploreResponse::score).reversed())
             .limit(RESULT_LIMIT)
             .toList();
     }
 
-    private static final int MIN_RELEVANCE = 20;
+    private List<ExploreCandidate> shortlist(
+        BookDetail baseBook,
+        Audience sourceAudience,
+        ExploreType type,
+        List<HiddenBook> pool
+    ) {
+        Set<String> baseTokens = tokens(safe(baseBook.title()) + " " + safe(baseBook.description()));
+        int baseLength = safe(baseBook.description()).length();
+        return pool.stream()
+            .map(book -> new ExploreCandidate(
+                book,
+                serverRelevance(baseTokens, baseLength, book, type),
+                ReadingAudienceClassifier.candidate(book)
+            ))
+            .filter(candidate -> ReadingAudienceClassifier.matches(sourceAudience, candidate.audience()))
+            .sorted(Comparator.comparingDouble(ExploreCandidate::serverRelevance).reversed()
+                .thenComparing(candidate -> candidate.book().getQualityScore(), Comparator.reverseOrder())
+                .thenComparingLong(candidate -> candidate.book().getLoanCount())
+                .thenComparing(candidate -> candidate.book().getTitle()))
+            .limit(AI_CANDIDATE_LIMIT)
+            .toList();
+    }
 
-    private ExploreResponse toResponse(HiddenBook book, AiScorePayload aiScore, long minLoanCount, long maxLoanCount) {
-        int relevance = aiScore != null ? clamp(aiScore.relevance()) : 0;
+    private double serverRelevance(Set<String> baseTokens, int baseLength, HiddenBook book, ExploreType type) {
+        String description = safe(HiddenBookPromptSummary.resolve(book));
+        Set<String> candidateTokens = tokens(safe(book.getTitle()) + " "
+            + String.join(" ", book.getKeywords()) + " " + description);
+        long overlap = baseTokens.stream().filter(candidateTokens::contains).count();
+        double topicScore = baseTokens.isEmpty() ? 0
+            : Math.min(1, (double) overlap / Math.min(20, baseTokens.size()));
+        double lengthScore = switch (type) {
+            case EASIER -> relativeLengthScore(description.length(), baseLength, true);
+            case DEEPER -> relativeLengthScore(description.length(), baseLength, false);
+            default -> topicScore;
+        };
+        return switch (type) {
+            case EASIER, DEEPER -> Math.min(1, topicScore * .75 + lengthScore * .25);
+            default -> topicScore;
+        };
+    }
+
+    private double relativeLengthScore(int candidateLength, int baseLength, boolean easier) {
+        if (baseLength <= 0) return .5;
+        double ratio = (double) candidateLength / baseLength;
+        return easier ? Math.max(0, Math.min(1, 1.5 - ratio)) : Math.max(0, Math.min(1, ratio - .5));
+    }
+
+    private boolean isRelevant(ExploreCandidate candidate, AiScorePayload aiScore) {
+        return candidate.serverRelevance() >= PREFERRED_SERVER_RELEVANCE
+            || clamp(aiScore.relevance()) >= MIN_AI_RELEVANCE_WITHOUT_SERVER_MATCH;
+    }
+
+    private ExploreResponse toResponse(
+        ExploreCandidate candidate,
+        AiScorePayload aiScore,
+        long minLoanCount,
+        long maxLoanCount
+    ) {
+        HiddenBook book = candidate.book();
+        int aiRelevance = aiScore != null ? clamp(aiScore.relevance()) : 0;
+        int relevance = (int) Math.round(aiRelevance * .75 + candidate.serverRelevance() * 100 * .25);
         String reason = aiScore != null ? aiScore.reason() : book.getReason();
 
         int discoveryValue = RecommendationScorer.discoveryValue(book.getLoanCount(), minLoanCount, maxLoanCount);
@@ -117,32 +202,49 @@ public class RecommendationExploreService {
         };
         return """
             당신은 도서관 사서입니다. 기준 도서와 후보 도서 목록을 보고 다음 기준으로 relevance(0~100 정수)와
-            reason(한 문장 이유)을 각 후보마다 산정합니다: %s
+            reason(한 문장 이유)을 산정합니다: %s
+            후보 전체를 평가하지 말고 가장 적합한 책만 최대 9권 선택하세요.
+            기준 도서와 후보의 예상 독자층이 어긋나면 선택하지 마세요. GENERAL은 모든 독자층과 호환됩니다.
+            적합한 책이 없으면 results를 빈 배열로 반환하고, 후보 목록에 없는 ISBN은 만들지 마세요.
             반드시 다음 JSON 형식으로만 답하세요:
             {"results": [{"isbn": "...", "relevance": 0, "reason": "..."}]}
             """.formatted(criteria);
     }
 
-    private String buildUserPrompt(BookDetail baseBook, List<HiddenBook> pool) {
+    private String buildUserPrompt(BookDetail baseBook, Audience sourceAudience, List<ExploreCandidate> candidates) {
         StringBuilder builder = new StringBuilder();
         builder.append("기준 도서 - 제목: ").append(baseBook.title())
-            .append(", 설명: ").append(baseBook.description()).append('\n');
+            .append(", 예상 독자층: ").append(sourceAudience)
+            .append(", 설명: ").append(truncate(baseBook.description(), MAX_DESCRIPTION_LENGTH)).append('\n');
         builder.append("후보 도서 목록:\n");
-        for (HiddenBook book : pool) {
+        for (ExploreCandidate candidate : candidates) {
+            HiddenBook book = candidate.book();
             builder.append("- isbn: ").append(book.getIsbn())
                 .append(", 제목: ").append(book.getTitle())
                 .append(", 키워드: ").append(String.join(", ", book.getKeywords()))
-                .append(", 소개: ").append(book.getReason())
+                .append(", 예상 독자층: ").append(candidate.audience())
+                .append(", 서가: ").append(truncate(book.getShelfName(), 100))
+                .append(", 서버 관련성: ").append(Math.round(candidate.serverRelevance() * 100))
+                .append(", 소개: ").append(truncate(HiddenBookPromptSummary.resolve(book), MAX_DESCRIPTION_LENGTH))
                 .append('\n');
         }
         return builder.toString();
     }
 
-    private String bookSummary(HiddenBook book) {
-        if (book.getDescription() != null && !book.getDescription().isBlank()) {
-            return book.getDescription();
-        }
-        return book.getReason() != null ? book.getReason() : "";
+    private Set<String> tokens(String text) {
+        Set<String> result = new LinkedHashSet<>();
+        Matcher matcher = TOKEN_PATTERN.matcher(safe(text).toLowerCase(Locale.ROOT));
+        while (matcher.find()) if (!STOP_WORDS.contains(matcher.group())) result.add(matcher.group());
+        return result;
+    }
+
+    private String truncate(String value, int maxLength) {
+        String text = safe(value).strip();
+        return text.length() <= maxLength ? text : text.substring(0, maxLength);
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private int clamp(Integer value) {
@@ -160,5 +262,8 @@ public class RecommendationExploreService {
     }
 
     private record AiScoreListPayload(@JsonProperty("results") List<AiScorePayload> results) {
+    }
+
+    private record ExploreCandidate(HiddenBook book, double serverRelevance, Audience audience) {
     }
 }

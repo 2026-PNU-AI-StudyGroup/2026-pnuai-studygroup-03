@@ -10,6 +10,7 @@ import com.wakebook.user.domain.User;
 import com.wakebook.user.domain.UserRole;
 import com.wakebook.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -65,7 +66,14 @@ public class HiddenBookUploadService {
         HiddenBookJob job = jobService.create(
             libraryCode, libraryName, HiddenBookSource.CSV_UPLOAD, librarian.getId(), false
         );
-        collector.collectFromCsv(job.getId(), libraryCode, libraryName, parsedRows);
+        try {
+            collector.collectFromCsv(job.getId(), libraryCode, libraryName, parsedRows);
+        } catch (TaskRejectedException e) {
+            jobService.fail(job.getId(), "작업 대기열이 가득 찼습니다. 잠시 후 다시 시도해 주세요.");
+            throw new ApiException(
+                HttpStatus.SERVICE_UNAVAILABLE, "JOB_005", "작업이 많습니다. 잠시 후 다시 시도해 주세요."
+            );
+        }
         return job;
     }
 
@@ -78,7 +86,7 @@ public class HiddenBookUploadService {
         }
         return parsed.stream()
             .map(record -> HiddenBookCandidate.fromCsv(
-                record.isbn(), record.title(), record.author(), record.loanCount()
+                record.isbn(), record.title(), record.author(), record.loanCount(), record.kdcCode()
             ))
             .toList();
     }

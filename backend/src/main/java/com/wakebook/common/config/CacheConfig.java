@@ -24,6 +24,8 @@ import java.time.Duration;
 public class CacheConfig {
 
     public static final String AI_KEYWORDS = "aiKeywords";
+    public static final String AI_RECOMMENDATIONS = "aiRecommendations";
+    public static final String AI_EXPLORE = "aiExplore";
     public static final String BOOK_COMPARISONS = "bookComparisons";
     public static final String BOOK_DETAILS = "bookDetails";
     public static final String BOOK_HOLDING_LIBRARIES = "bookHoldingLibraries";
@@ -40,6 +42,9 @@ public class CacheConfig {
 
         // AI 응답: 같은 도서·같은 조합이면 결과가 바뀌지 않는다.
         register(cacheManager, AI_KEYWORDS, Duration.ofDays(7), 2_000);
+        // 동일 조건 추천은 프론트의 더 보기와 재방문에서 재사용한다. 후보군 갱신 반영을 위해 짧게 유지한다.
+        register(cacheManager, AI_RECOMMENDATIONS, Duration.ofMinutes(15), 1_000);
+        register(cacheManager, AI_EXPLORE, Duration.ofMinutes(15), 1_000);
         register(cacheManager, BOOK_COMPARISONS, Duration.ofDays(7), 2_000);
 
         // 도서 서지 정보: 사실상 불변. 후보군 산출·추천·책장이 모두 재사용한다.

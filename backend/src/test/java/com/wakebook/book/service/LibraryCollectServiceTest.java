@@ -15,10 +15,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -118,6 +122,21 @@ class LibraryCollectServiceTest {
         verify(collector).collectFromLibraryApi(any(), anyString());
     }
 
+    @Test
+    void 대기열이_가득차면_작업을_실패로_기록하고_503을_반환한다() {
+        HiddenBookJob job = job();
+        when(hiddenBookRepository.findTopByLibraryCode(LIBRARY_CODE)).thenReturn(Optional.empty());
+        when(jobService.create(anyString(), any(), any(), anyLong(), anyBoolean())).thenReturn(job);
+        org.mockito.Mockito.doThrow(new TaskRejectedException("queue full"))
+            .when(collector).collectFromLibraryApi(job.getId(), LIBRARY_CODE);
+
+        assertThatThrownBy(() -> service.requestCollect(USER_ID.toString(), LIBRARY_CODE))
+            .isInstanceOf(ApiException.class)
+            .satisfies(error -> assertThat(((ApiException) error).getStatus())
+                .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
+        verify(jobService).fail(job.getId(), "작업 대기열이 가득 찼습니다. 잠시 후 다시 시도해 주세요.");
+    }
+
     private HiddenBook book(HiddenBookSource source) {
         return new HiddenBook(
             "9788996991342", LIBRARY_CODE, "테스트도서관", "제목", "저자", null,
@@ -130,6 +149,8 @@ class LibraryCollectServiceTest {
     }
 
     private HiddenBookJob job() {
-        return new HiddenBookJob(LIBRARY_CODE, null, HiddenBookSource.LIBRARY_API, USER_ID);
+        return new HiddenBookJob(
+            LIBRARY_CODE, null, HiddenBookSource.LIBRARY_API, USER_ID, LocalDateTime.now()
+        );
     }
 }

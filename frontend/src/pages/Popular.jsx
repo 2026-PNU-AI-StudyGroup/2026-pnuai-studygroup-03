@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Sparkles } from 'lucide-react'
+import { ChevronRight, LoaderCircle, Sparkles } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import Cover from '../components/Cover'
 import Notice from '../components/Notice'
@@ -18,18 +18,33 @@ const PAGE_SIZE = 12
 export default function Popular() {
   const [filters, setFilters] = useState({ category: 'ALL', gender: 'ALL', age: '' })
   const [page, setPage] = useState(1)
+  const [displayedPage, setDisplayedPage] = useState(1)
   const [result, setResult] = useState(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let active = true
     setLoading(true)
     const params = { page, size: PAGE_SIZE, category: filters.category, gender: filters.gender }
     if (filters.age) params.age = Number(filters.age)
     api.popularBooks(params)
-      .then((data) => { setResult(data); setMessage('') })
-      .catch((err) => { setResult(null); setMessage(errorMessage(err, '인기 도서를 불러오지 못했습니다.')) })
-      .finally(() => setLoading(false))
+      .then((data) => {
+        if (!active) return
+        setResult(data)
+        setDisplayedPage(page)
+        setMessage('')
+      })
+      .catch((err) => {
+        if (!active) return
+        setResult(null)
+        setMessage(errorMessage(err, '인기 도서를 불러오지 못했습니다.'))
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => { active = false }
   }, [filters, page])
 
   const changeFilter = (key, value) => {
@@ -66,33 +81,39 @@ export default function Popular() {
       </div>
 
       <Notice>{message}</Notice>
-      {loading && <p className="lead">인기 도서를 불러오는 중입니다.</p>}
-
-      <div className="popular-grid">
-        {books.map((book) => (
-          <article className="popular-card" key={`${book.isbn}-${book.rank}`}>
-            <span className="rank">{book.rank}</span>
-            <Cover book={book} />
-            <div>
-              <h2>{book.title}</h2>
-              <p>{book.author || '저자 정보 없음'}</p>
-              <span className="popular-loan">대출 {book.loanCount.toLocaleString()}회</span>
-              <Link className="outline-link" to={`/discover/${book.isbn}`}>
-                <Sparkles size={14} /> 이 책으로 탐색하기
-              </Link>
-              <Link className="text-link" to={`/books/${book.isbn}`}>도서 상세 <ChevronRight size={13} /></Link>
-            </div>
-          </article>
-        ))}
+      <div className={`popular-results${loading ? ' is-loading' : ''}`} aria-busy={loading}>
+        {loading && (
+          <div className="popular-loading" role="status" aria-live="polite">
+            <LoaderCircle size={22} aria-hidden="true" />
+            <span>인기 도서를 불러오는 중입니다.</span>
+          </div>
+        )}
+        <div className="popular-grid">
+          {books.map((book) => (
+            <article className="popular-card" key={`${book.isbn}-${book.rank}`}>
+              <span className="rank">{book.rank}</span>
+              <Cover book={book} />
+              <div>
+                <h2>{book.title}</h2>
+                <p>{book.author || '저자 정보 없음'}</p>
+                <span className="popular-loan">대출 {book.loanCount.toLocaleString()}회</span>
+                <Link className="outline-link" to={`/discover/${book.isbn}`}>
+                  <Sparkles size={14} /> 이 책으로 탐색하기
+                </Link>
+                <Link className="text-link" to={`/books/${book.isbn}`}>도서 상세 <ChevronRight size={13} /></Link>
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
 
       {!loading && !books.length && !message && <p className="lead">조건에 맞는 인기 도서가 없습니다.</p>}
 
       {result && result.totalPages > 1 && (
         <div className="pagination">
-          <button disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>이전</button>
-          <span>{page} / {result.totalPages}</span>
-          <button disabled={page >= result.totalPages} onClick={() => setPage((current) => current + 1)}>다음</button>
+          <button disabled={loading || displayedPage <= 1} onClick={() => setPage(displayedPage - 1)}>이전</button>
+          <span>{displayedPage} / {result.totalPages}</span>
+          <button disabled={loading || displayedPage >= result.totalPages} onClick={() => setPage(displayedPage + 1)}>다음</button>
         </div>
       )}
     </section>

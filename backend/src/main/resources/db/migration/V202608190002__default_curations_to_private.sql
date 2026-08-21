@@ -1,0 +1,1 @@
+ALTER TABLE curations ALTER COLUMN is_public SET DEFAULT FALSE;

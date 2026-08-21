@@ -19,6 +19,7 @@ public record HiddenBookResponse(
     String libraryName,
     String callNumber,
     String shelfName,
+    String kdcCode,
     HiddenBookSource source,
     List<String> keywords
 ) {
@@ -27,7 +28,7 @@ public record HiddenBookResponse(
         return new HiddenBookResponse(
             hiddenBook.getIsbn(), hiddenBook.getTitle(), hiddenBook.getAuthor(), hiddenBook.getCover(),
             hiddenBook.getReason(), hiddenBook.getDescription(), hiddenBook.getLibraryName(),
-            hiddenBook.getCallNumber(), hiddenBook.getShelfName(), hiddenBook.getSource(),
+            hiddenBook.getCallNumber(), hiddenBook.getShelfName(), hiddenBook.getKdcCode(), hiddenBook.getSource(),
             hiddenBook.getKeywords()
         );
     }

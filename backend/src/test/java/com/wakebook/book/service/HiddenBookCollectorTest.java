@@ -16,6 +16,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -112,6 +115,26 @@ class HiddenBookCollectorTest {
     }
 
     @Test
+    void 서로_다른_카탈로그_ISBN이_상세조회에서_같은_ISBN으로_귀결되면_한_번만_저장한다() {
+        // 정보나루 장서 목록에 같은 책이 ISBN-10/ISBN-13처럼 서로 다른 문자열로 두 번 등록돼 있어도,
+        // 카카오/알라딘 상세조회가 둘 다 같은 정식 ISBN-13을 돌려주면 저장 시 유니크 제약을 위반한다
+        // (실제로 재현된 버그, 2026-08-22 수정). candidate.isbn()이 아니라 detail.isbn()을 저장하기
+        // 때문에 categoryQueues()의 선행 dedupe로는 못 잡는다 — 저장 직전 재확인이 필요하다.
+        catalogProvider.setItems(List.of(
+            holding("9788960867450", "관계에도 연습이 필요합니다"),
+            holding("9788960867450X", "관계에도 연습이 필요합니다(ISBN-10)")
+        ));
+        bookDetailProvider.setDetailForIsbn("9788960867450", detail("9788960867450"));
+        bookDetailProvider.setDetailForIsbn("9788960867450X", detail("9788960867450"));
+
+        collector.collectFromLibraryApi(6L, LIBRARY_CODE);
+
+        List<HiddenBook> saved = captureSaved();
+        assertThat(saved).hasSize(1);
+        assertThat(saved.get(0).getIsbn()).isEqualTo("9788960867450");
+    }
+
+    @Test
     void 대출_순위_밖_장서가_없으면_작업을_0건으로_마친다() {
         catalogProvider.setItems(List.of(holding("9791111111111", "많이 대출된 책")));
         rankingProvider.setRankedIsbns(java.util.Set.of("9791111111111"));
@@ -120,6 +143,31 @@ class HiddenBookCollectorTest {
 
         verify(jobService).succeed(eq(4L), eq("부산광역시 강서도서관"), eq(0), any());
         verify(poolWriter, org.mockito.Mockito.never()).replace(any(), any());
+    }
+
+    @Test
+    void CSV_후보는_KDC_10개_분야를_가능한_한_균등하게_채운다() {
+        collector = new HiddenBookCollector(bookDetailProvider, catalogProvider, rankingProvider,
+            poolWriter, jobService, new HiddenBookProperties(2, 30, 12));
+        List<HiddenBookCandidate> rows = new ArrayList<>();
+        for (int category = 0; category < 10; category++) {
+            for (int sequence = 0; sequence < 5; sequence++) {
+                String isbn = "%013d".formatted(category * 100 + sequence + 1);
+                rows.add(HiddenBookCandidate.fromCsv(isbn, "분야별 도서 " + isbn, "저자", sequence,
+                    category + "00"));
+                bookDetailProvider.setDetailForIsbn(isbn, new BookDetail(isbn, "분야별 도서 " + isbn,
+                    "저자", "출판사", 2020, "https://example.com/cover.jpg", QUALITY_DESCRIPTION));
+            }
+        }
+
+        collector.collectFromCsv(5L, LIBRARY_CODE, "테스트도서관", rows);
+
+        List<HiddenBook> saved = captureSaved();
+        Map<String, Long> distribution = saved.stream()
+            .collect(Collectors.groupingBy(HiddenBook::getKdcCode, Collectors.counting()));
+        assertThat(saved).hasSize(30);
+        assertThat(distribution).hasSize(10);
+        assertThat(distribution.values()).allMatch(count -> count == 3L);
     }
 
     private List<HiddenBook> captureSaved() {

@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
             log.error("[{}] {}", exception.getCode(), exception.getMessage(), exception);
         }
         return ResponseEntity.status(exception.getStatus())
-                .body(ErrorResponse.of(exception.getCode(), exception.getMessage()));
+                .body(ErrorResponse.of(exception.getCode(), exception.getMessage(), exception.getData()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

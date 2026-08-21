@@ -25,11 +25,14 @@ export default function Explore() {
   const [baseBook, setBaseBook] = useState(null)
   const [type, setType] = useState(EXPLORE_TYPES[0].code)
   const [results, setResults] = useState(null)
+  const [resultCriteria, setResultCriteria] = useState(null)
   const [message, setMessage] = useState('')
   const [shelfMessage, setShelfMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    setResults(null)
+    setResultCriteria(null)
     api.bookDetail(isbn)
       .then(setBaseBook)
       .catch(() => setBaseBook(null))
@@ -42,9 +45,15 @@ export default function Explore() {
 
     setLoading(true)
     setMessage('')
+    const requestedCriteria = {
+      type: nextType,
+      label: EXPLORE_TYPES.find((item) => item.code === nextType)?.label || nextType,
+      libraryName: library?.libraryName || '선택한 도서관',
+    }
     try {
       const response = await api.explore({ isbn, libraryCode, type: nextType })
       setResults(response)
+      setResultCriteria(requestedCriteria)
       if (!response.length) {
         setMessage('이 조건에 맞는 다른 잠자는 도서를 찾지 못했습니다.')
       }
@@ -55,8 +64,6 @@ export default function Explore() {
       setLoading(false)
     }
   }
-
-  const selected = EXPLORE_TYPES.find((item) => item.code === type)
 
   return (
     <section className="page discovery-page">
@@ -107,8 +114,8 @@ export default function Explore() {
           <div className="result-heading">
             <div>
               <p className="eyebrow"><span /> EXPLORE RESULT</p>
-              <h2><em>{selected?.label}</em>으로 이어지는 책</h2>
-              <p>{library?.libraryName}의 잠자는 도서 중에서 골랐어요.</p>
+              <h2><em>{resultCriteria?.label}</em>으로 이어지는 책</h2>
+              <p>{resultCriteria?.libraryName}의 잠자는 도서 중에서 골랐어요.</p>
             </div>
             <strong>{results.length}권</strong>
           </div>

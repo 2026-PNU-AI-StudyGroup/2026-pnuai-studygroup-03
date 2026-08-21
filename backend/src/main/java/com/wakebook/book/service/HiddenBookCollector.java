@@ -3,6 +3,7 @@ package com.wakebook.book.service;
 import com.wakebook.book.domain.HiddenBook;
 import com.wakebook.book.domain.HiddenBookSource;
 import com.wakebook.book.support.HiddenBookProperties;
+import com.wakebook.book.support.KdcCategory;
 import com.wakebook.book.support.KdcKeywords;
 import com.wakebook.external.library.BookDetail;
 import com.wakebook.external.library.BookDetailProvider;
@@ -18,6 +19,12 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
@@ -154,7 +161,7 @@ public class HiddenBookCollector {
     private HiddenBookCandidate toCandidate(HoldingCatalogItem item) {
         return new HiddenBookCandidate(
             item.isbn(), item.title(), item.author(), item.cover(),
-            0, item.className(), item.callNumber(), item.shelfName()
+            0, null, item.className(), item.callNumber(), item.shelfName()
         );
     }
 
@@ -169,34 +176,106 @@ public class HiddenBookCollector {
         HiddenBookSource source,
         List<HiddenBookCandidate> candidates
     ) {
-        List<HiddenBook> collected = new ArrayList<>();
-        int processed = 0;
+        EnrichmentState state = new EnrichmentState(hiddenBookProperties.candidatePoolSize() * 3);
+        Map<KdcCategory, Deque<HiddenBookCandidate>> queues = categoryQueues(candidates);
+        int baseQuota = hiddenBookProperties.candidatePoolSize() / 10;
+        int remainder = hiddenBookProperties.candidatePoolSize() % 10;
 
-        for (HiddenBookCandidate candidate : candidates) {
-            if (collected.size() >= hiddenBookProperties.candidatePoolSize()) {
-                break;
-            }
-            processed++;
-            try {
-                bookDetailProvider.fetch(candidate.isbn())
-                    .filter(this::passesQualityCheck)
-                    .ifPresent(detail ->
-                        collected.add(buildHiddenBook(libraryCode, libraryName, source, candidate, detail)));
-            } catch (Exception e) {
-                // 한 권 조회가 실패해도 나머지 후보로 계속 진행한다.
-                log.warn("후보 도서 상세 조회 실패 (isbn={})", candidate.isbn(), e);
-            }
-            if (processed % PROGRESS_INTERVAL == 0) {
-                jobService.progress(jobId, processed, collected.size());
+        // 알려진 KDC 10개 분야를 먼저 같은 수만큼 채운다. 특정 분야 자료가 부족하면 아래 여유분 단계에서 보충한다.
+        int categoryIndex = 0;
+        for (KdcCategory category : knownCategories()) {
+            int quota = baseQuota + (categoryIndex++ < remainder ? 1 : 0);
+            int categoryAttemptLimit = Math.max(quota * 3, quota + 10);
+            int attempts = 0;
+            while (state.categoryCount(category) < quota && attempts < categoryAttemptLimit
+                && state.canContinue(hiddenBookProperties.candidatePoolSize())) {
+                int before = state.processed;
+                boolean queueExhausted = !enrichNext(jobId, libraryCode, libraryName, source,
+                    queues.get(category), state);
+                attempts += state.processed - before;
+                if (queueExhausted) break;
             }
         }
+
+        // 자료가 부족한 KDC 몫은 남아 있는 분야에서 라운드로빈으로 채우되, 전체 상세 조회는 목표의 3배를 넘기지 않는다.
+        List<KdcCategory> overflowOrder = new ArrayList<>(knownCategories());
+        overflowOrder.add(KdcCategory.UNKNOWN);
+        boolean madeProgress = true;
+        while (state.canContinue(hiddenBookProperties.candidatePoolSize()) && madeProgress) {
+            madeProgress = false;
+            for (KdcCategory category : overflowOrder) {
+                int before = state.processed;
+                enrichNext(jobId, libraryCode, libraryName, source, queues.get(category), state);
+                madeProgress |= state.processed > before;
+                if (!state.canContinue(hiddenBookProperties.candidatePoolSize())) break;
+            }
+        }
+
+        List<HiddenBook> collected = dedupeByIsbn(state.collected);
 
         // 0건으로 교체하면 멀쩡히 쓰던 기존 후보군까지 사라진다. 새로 모은 게 있을 때만 교체한다.
         if (!collected.isEmpty()) {
             poolWriter.replace(libraryCode, collected);
         }
-        jobService.progress(jobId, processed, collected.size());
+        jobService.progress(jobId, state.processed, collected.size());
         return collected.size();
+    }
+
+    /**
+     * categoryQueues()는 candidate.isbn()(장서 목록의 원래 ISBN) 기준으로 미리 중복을 제거하지만,
+     * buildHiddenBook()이 저장하는 isbn은 candidate.isbn()이 아니라 detail.isbn()(카카오→알라딘→
+     * 정보나루 순으로 조회한 결과가 돌려준 ISBN)이다. 같은 책이 카탈로그에 ISBN-10/ISBN-13처럼
+     * 서로 다른 문자열로 두 번 등록돼 있으면, 두 candidate가 상세조회에서 같은 detail.isbn()으로
+     * 귀결돼 (libraryCode, isbn) 유니크 제약을 위반하며 저장이 통째로 실패한다(실측 재현됨).
+     * 저장 직전에 한 번 더 걸러서 이 불일치를 방어한다.
+     */
+    private List<HiddenBook> dedupeByIsbn(List<HiddenBook> books) {
+        Map<String, HiddenBook> byIsbn = new LinkedHashMap<>();
+        for (HiddenBook book : books) {
+            byIsbn.putIfAbsent(book.getIsbn(), book);
+        }
+        return new ArrayList<>(byIsbn.values());
+    }
+
+    private Map<KdcCategory, Deque<HiddenBookCandidate>> categoryQueues(List<HiddenBookCandidate> candidates) {
+        Map<KdcCategory, List<HiddenBookCandidate>> grouped = new EnumMap<>(KdcCategory.class);
+        for (KdcCategory category : KdcCategory.values()) grouped.put(category, new ArrayList<>());
+        Map<String, HiddenBookCandidate> unique = new LinkedHashMap<>();
+        candidates.stream().filter(candidate -> candidate.isbn() != null && !candidate.isbn().isBlank())
+            .forEach(candidate -> unique.putIfAbsent(candidate.isbn(), candidate));
+        unique.values().forEach(candidate -> grouped.get(candidate.kdcCategory()).add(candidate));
+        Map<KdcCategory, Deque<HiddenBookCandidate>> queues = new EnumMap<>(KdcCategory.class);
+        grouped.forEach((category, books) -> {
+            books.sort(Comparator.comparingLong(HiddenBookCandidate::loanCount));
+            queues.put(category, new ArrayDeque<>(books));
+        });
+        return queues;
+    }
+
+    private boolean enrichNext(Long jobId, String libraryCode, String libraryName, HiddenBookSource source,
+        Deque<HiddenBookCandidate> queue, EnrichmentState state) {
+        if (queue == null || queue.isEmpty() || state.processed >= state.maxLookups) return false;
+        while (!queue.isEmpty() && state.processed < state.maxLookups) {
+            HiddenBookCandidate candidate = queue.removeFirst();
+            state.processed++;
+            try {
+                bookDetailProvider.fetch(candidate.isbn()).filter(this::passesQualityCheck).ifPresent(detail ->
+                    state.add(candidate.kdcCategory(), buildHiddenBook(libraryCode, libraryName, source, candidate, detail)));
+            } catch (Exception e) {
+                log.warn("후보 도서 상세 조회 실패 (isbn={})", candidate.isbn(), e);
+            }
+            if (state.processed % PROGRESS_INTERVAL == 0)
+                jobService.progress(jobId, state.processed, state.collected.size());
+            if (state.lastAttemptAdded) {
+                state.lastAttemptAdded = false;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<KdcCategory> knownCategories() {
+        return java.util.Arrays.stream(KdcCategory.values()).filter(category -> category != KdcCategory.UNKNOWN).toList();
     }
 
     private boolean passesQualityCheck(BookDetail detail) {
@@ -224,12 +303,29 @@ public class HiddenBookCollector {
             candidate.loanCount(),
             calculateQualityScore(detail),
             null,
-            KdcKeywords.from(candidate.className()),
+            KdcKeywords.from(candidate.className(), candidate.kdcCode()),
             source,
             candidate.callNumber(),
             candidate.shelfName(),
-            truncateDescription(detail.description())
+            truncateDescription(detail.description()),
+            candidate.kdcCategory().code()
         );
+    }
+
+    private static final class EnrichmentState {
+        private final List<HiddenBook> collected = new ArrayList<>();
+        private final Map<KdcCategory, Integer> categoryCounts = new EnumMap<>(KdcCategory.class);
+        private final int maxLookups;
+        private int processed;
+        private boolean lastAttemptAdded;
+        private EnrichmentState(int maxLookups) { this.maxLookups = maxLookups; }
+        private void add(KdcCategory category, HiddenBook book) {
+            collected.add(book);
+            categoryCounts.merge(category, 1, Integer::sum);
+            lastAttemptAdded = true;
+        }
+        private int categoryCount(KdcCategory category) { return categoryCounts.getOrDefault(category, 0); }
+        private boolean canContinue(int target) { return collected.size() < target && processed < maxLookups; }
     }
 
     private String truncateDescription(String description) {

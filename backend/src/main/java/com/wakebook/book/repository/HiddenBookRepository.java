@@ -38,4 +38,7 @@ public interface HiddenBookRepository extends JpaRepository<HiddenBook, Long> {
     Optional<HiddenBook> findTopByLibraryCode(String libraryCode);
 
     long deleteAllByLibraryCode(String libraryCode);
+
+    @Query("SELECT DISTINCT hiddenBook.libraryCode FROM HiddenBook hiddenBook ORDER BY hiddenBook.libraryCode")
+    List<String> findDistinctLibraryCodes();
 }

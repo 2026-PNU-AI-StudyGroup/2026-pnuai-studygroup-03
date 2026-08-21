@@ -13,6 +13,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,7 +32,9 @@ class LibrarianHiddenBookControllerTest {
                 "file", "library.csv", "text/csv", "dummy".getBytes(StandardCharsets.UTF_8)
         );
         HiddenBookJob job =
-                new HiddenBookJob("121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L);
+                new HiddenBookJob(
+                    "121018", "부산광역시 금정도서관", HiddenBookSource.CSV_UPLOAD, 12L, LocalDateTime.now()
+                );
         when(hiddenBookUploadService.upload(eq("12"), eq("121018"), any())).thenReturn(job);
         Jwt jwt = Jwt.withTokenValue("access-token")
                 .header("alg", "HS256")

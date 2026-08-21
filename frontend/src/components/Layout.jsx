@@ -12,6 +12,8 @@ function Header() {
       <nav className={open ? 'open' : ''} onClick={() => setOpen(false)}>
         <NavLink to="/popular">인기 도서</NavLink>
         <NavLink to="/search">도서 검색</NavLink>
+        <NavLink to="/trends">실시간 트렌드</NavLink>
+        <NavLink to="/curations">큐레이션</NavLink>
         <NavLink to="/today">오늘의 책</NavLink>
         {user && <NavLink to="/bookshelf">나의 책장</NavLink>}
         {user?.role === 'LIBRARIAN' && <NavLink to="/librarian">사서 공간</NavLink>}

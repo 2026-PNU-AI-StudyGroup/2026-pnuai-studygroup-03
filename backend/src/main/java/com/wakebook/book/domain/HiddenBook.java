@@ -51,6 +51,9 @@ public class HiddenBook {
     @Column(name = "quality_score", nullable = false)
     private int qualityScore;
 
+    @Column(name = "kdc_code", length = 10)
+    private String kdcCode;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private HiddenBookSource source;
@@ -95,7 +98,7 @@ public class HiddenBook {
         List<String> keywords
     ) {
         this(isbn, libraryCode, libraryName, title, author, cover, loanCount, qualityScore,
-            reason, keywords, HiddenBookSource.CSV_UPLOAD, null, null, null);
+            reason, keywords, HiddenBookSource.CSV_UPLOAD, null, null, null, null);
     }
 
     public HiddenBook(
@@ -114,6 +117,15 @@ public class HiddenBook {
         String shelfName,
         String description
     ) {
+        this(isbn, libraryCode, libraryName, title, author, cover, loanCount, qualityScore,
+            reason, keywords, source, callNumber, shelfName, description, null);
+    }
+
+    public HiddenBook(
+        String isbn, String libraryCode, String libraryName, String title, String author, String cover,
+        long loanCount, int qualityScore, String reason, List<String> keywords, HiddenBookSource source,
+        String callNumber, String shelfName, String description, String kdcCode
+    ) {
         this.isbn = isbn;
         this.libraryCode = libraryCode;
         this.libraryName = libraryName;
@@ -122,6 +134,7 @@ public class HiddenBook {
         this.cover = cover;
         this.loanCount = loanCount;
         this.qualityScore = qualityScore;
+        this.kdcCode = kdcCode;
         this.reason = reason;
         this.keywords = new ArrayList<>(keywords);
         this.source = source;
@@ -184,6 +197,8 @@ public class HiddenBook {
     public int getQualityScore() {
         return qualityScore;
     }
+
+    public String getKdcCode() { return kdcCode; }
 
     public String getReason() {
         return reason;

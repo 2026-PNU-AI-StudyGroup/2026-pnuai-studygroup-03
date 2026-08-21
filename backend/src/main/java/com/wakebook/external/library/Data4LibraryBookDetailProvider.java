@@ -24,7 +24,7 @@ public class Data4LibraryBookDetailProvider implements BookDetailProvider {
         this.authKey = properties.authKey();
     }
 
-    // 캐시는 FallbackBookDetailProvider에 걸려 있다. 여기에 또 걸면 알라딘으로 해결된 건이 캐시에 남지 않는다.
+    // 캐시는 FallbackBookDetailProvider에 걸려 있다. 카카오와 알라딘이 모두 부족할 때만 이 API를 호출한다.
     @Override
     public Optional<BookDetail> fetch(String isbn) {
         BookDetailApiResponse response;

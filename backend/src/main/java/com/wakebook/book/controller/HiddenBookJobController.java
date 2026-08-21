@@ -3,6 +3,8 @@ package com.wakebook.book.controller;
 import com.wakebook.book.dto.HiddenBookJobResponse;
 import com.wakebook.book.service.HiddenBookJobService;
 import com.wakebook.common.response.ApiResponse;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +21,10 @@ public class HiddenBookJobController {
     }
 
     @GetMapping("/{jobId}")
-    public ApiResponse<HiddenBookJobResponse> getJob(@PathVariable Long jobId) {
-        return ApiResponse.success(HiddenBookJobResponse.from(jobService.get(jobId)));
+    public ApiResponse<HiddenBookJobResponse> getJob(
+        @AuthenticationPrincipal Jwt jwt,
+        @PathVariable Long jobId
+    ) {
+        return ApiResponse.success(HiddenBookJobResponse.from(jobService.getForRequester(jobId, jwt.getSubject())));
     }
 }

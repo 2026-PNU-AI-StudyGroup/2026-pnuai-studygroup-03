@@ -1,11 +1,135 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertCircle, FileSpreadsheet, Pencil, Save, Trash2, Upload } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Activity, AlertCircle, CheckCircle2, FileSpreadsheet, Pencil, Radio, RefreshCw, Save, Trash2, Upload } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { useLibrary } from '../library/LibraryContext'
 import { useHiddenBookJob } from '../library/useHiddenBookJob'
 import JobProgress from '../components/JobProgress'
 import Notice from '../components/Notice'
+
+const RUNNING_TREND_STATUSES = new Set(['PENDING', 'PROCESSING'])
+
+function TrendPanel() {
+  const [current, setCurrent] = useState(null)
+  const [batch, setBatch] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [starting, setStarting] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  const loadCurrent = useCallback(async () => {
+    try {
+      const data = await api.librarianDailyTrends()
+      setCurrent(data)
+      setError('')
+      return data
+    } catch (err) {
+      if (err?.response?.data?.code === 'TREND_001') {
+        setCurrent(null)
+        return null
+      }
+      setError(errorMessage(err, '오늘의 트렌드 추천 상태를 불러오지 못했습니다.'))
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadCurrent() }, [loadCurrent])
+
+  useEffect(() => {
+    if (!batch?.batchId || !RUNNING_TREND_STATUSES.has(batch.status)) return undefined
+    const timer = window.setTimeout(async () => {
+      try {
+        const next = await api.trendBatch(batch.batchId)
+        setBatch(next)
+        if (next.status === 'COMPLETED') {
+          setNotice(`오늘의 트렌드 추천 ${next.createdCount}개 주제를 생성했습니다.`)
+          await loadCurrent()
+        } else if (next.status === 'FAILED') {
+          setError(`트렌드 추천 생성에 실패했습니다. 오류 코드: ${next.errorCode || 'TREND_002'}`)
+        }
+      } catch (err) {
+        setError(errorMessage(err, '트렌드 생성 진행 상태를 확인하지 못했습니다.'))
+      }
+    }, 2000)
+    return () => window.clearTimeout(timer)
+  }, [batch, loadCurrent])
+
+  const refresh = async () => {
+    if (current && !window.confirm('오늘 추천을 다시 만들면 OpenAI 호출이 발생하고 현재 노출 결과가 바뀔 수 있습니다. 계속할까요?')) return
+    setStarting(true)
+    setError('')
+    setNotice('')
+    try {
+      const next = await api.refreshDailyTrends(Boolean(current))
+      setBatch(next)
+      if (next.status === 'COMPLETED') {
+        setNotice('오늘 생성된 추천을 확인했습니다.')
+        await loadCurrent()
+      } else {
+        setNotice('트렌드 수집과 도서 연결을 시작했습니다. 이 화면에서 진행 상태를 자동으로 확인합니다.')
+      }
+    } catch (err) {
+      const runningBatchId = err?.response?.data?.data?.batchId
+      if (err?.response?.data?.code === 'TREND_003' && runningBatchId) {
+        try {
+          setBatch(await api.trendBatch(runningBatchId))
+          setNotice('이미 실행 중인 트렌드 생성 작업을 이어서 확인합니다.')
+        } catch (batchError) {
+          setError(errorMessage(batchError, '실행 중인 트렌드 작업을 확인하지 못했습니다.'))
+        }
+      } else {
+        setError(errorMessage(err, '트렌드 추천 생성을 시작하지 못했습니다.'))
+      }
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  const running = RUNNING_TREND_STATUSES.has(batch?.status)
+  const topicCount = current?.items?.length || 0
+
+  return (
+    <section className="operation-panel trend-operation-panel">
+      <div className="operation-heading">
+        <div>
+          <span className="badge"><Radio size={13} /> REAL-TIME TREND</span>
+          <h2>오늘의 실시간 트렌드 추천</h2>
+          <p>Google 트렌드 후보를 네이버 뉴스·데이터랩으로 보강하고, 우리 도서관의 잠자는 책과 연결합니다.</p>
+        </div>
+        <div className="trend-operation-count">
+          <b>{loading ? '—' : topicCount}</b><span>오늘의 주제</span>
+        </div>
+      </div>
+
+      <div className="trend-operation-status">
+        {running ? <Activity className="spin" size={19} /> : current ? <CheckCircle2 size={19} /> : <AlertCircle size={19} />}
+        <div>
+          <b>{running ? '트렌드와 도서를 연결하는 중입니다.' : current ? '오늘의 추천이 준비되었습니다.' : '오늘 생성된 추천이 없습니다.'}</b>
+          <span>
+            {running
+              ? `작업 상태: ${batch.status} · 완료될 때까지 자동 확인합니다.`
+              : current
+                ? `${current.libraryName || '소속 도서관'} · ${topicCount}개 주제 · ${current.items.reduce((sum, item) => sum + (item.books?.length || 0), 0)}권`
+                : '서버 시작 시 자동 생성되며, 아래 버튼으로 지금 바로 시작할 수도 있습니다.'}
+          </span>
+        </div>
+      </div>
+
+      <Notice>{error}</Notice>
+      <Notice tone="success">{notice}</Notice>
+      <div className="trend-operation-actions">
+        <button className="primary-link" onClick={refresh} disabled={starting || running}>
+          <RefreshCw className={starting ? 'spin' : ''} size={15} />
+          {running ? '생성 진행 중' : current ? '오늘 추천 다시 생성' : '오늘 추천 생성'}
+        </button>
+        <Link className="secondary-button" to="/trends">이용자 화면에서 보기</Link>
+      </div>
+    </section>
+  )
+}
 
 function CsvPanel() {
   const { user } = useAuth()
@@ -196,6 +320,7 @@ export default function LibrarianOperations() {
       <h1 className="page-title">사서 관리 도구</h1>
       <p className="lead">장서 데이터를 등록하고, 전시 큐레이션을 한 곳에서 관리하세요.</p>
       <div className="operations-grid">
+        <TrendPanel />
         <CsvPanel />
         <CurationPanel />
       </div>

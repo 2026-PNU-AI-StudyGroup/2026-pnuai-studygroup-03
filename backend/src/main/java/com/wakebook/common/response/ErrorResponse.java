@@ -9,4 +9,8 @@ public record ErrorResponse(
     public static ErrorResponse of(String code, String message) {
         return new ErrorResponse(false, code, message, null);
     }
+
+    public static ErrorResponse of(String code, String message, Object data) {
+        return new ErrorResponse(false, code, message, data);
+    }
 }
