@@ -1,6 +1,19 @@
 node_modules
 dist
 .DS_Store
+
+# 실제 키가 들어가는 파일만 제외한다. .env.example은 팀원이 필요한 키를 알 수 있도록 커밋한다.
 .env
-.env.example
+
+# 개인 작업 메모
 docs/tasks.md
+
+# 빌드 산출물
+backend/build/
+backend/.gradle/
+backend/bin/
+
+# IDE 설정
+.idea/
+*.iml
+.vscode/

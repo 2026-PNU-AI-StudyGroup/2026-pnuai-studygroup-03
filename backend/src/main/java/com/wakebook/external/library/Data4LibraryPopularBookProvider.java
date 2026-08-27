@@ -1,8 +1,12 @@
 package com.wakebook.external.library;
 
 import com.wakebook.common.ApiException;
+import com.wakebook.common.config.CacheConfig;
 import com.wakebook.external.library.dto.LoanItemSearchApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -13,6 +17,7 @@ import java.util.List;
 @Component
 public class Data4LibraryPopularBookProvider implements PopularLoanBookProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(Data4LibraryPopularBookProvider.class);
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final RestClient restClient;
@@ -24,6 +29,7 @@ public class Data4LibraryPopularBookProvider implements PopularLoanBookProvider 
     }
 
     @Override
+    @Cacheable(cacheNames = CacheConfig.POPULAR_BOOKS, key = "#criteria")
     public PopularLoanBookResult fetch(PopularLoanBookCriteria criteria) {
         LoanItemSearchApiResponse response;
         try {
@@ -50,6 +56,8 @@ public class Data4LibraryPopularBookProvider implements PopularLoanBookProvider 
                 .retrieve()
                 .body(LoanItemSearchApiResponse.class);
         } catch (RestClientException e) {
+            // 원인을 남기지 않으면 한도 소진인지 네트워크 오류인지 스택만으로는 구분할 수 없다.
+            log.error("정보나루 loanItemSrch(인기 도서) 호출 실패 (criteria={})", criteria, e);
             throw new ApiException(HttpStatus.BAD_GATEWAY, "BOOK_002", "인기 도서 조회에 실패했습니다.");
         }
 
@@ -57,6 +65,7 @@ public class Data4LibraryPopularBookProvider implements PopularLoanBookProvider 
             throw new ApiException(HttpStatus.BAD_GATEWAY, "BOOK_002", "인기 도서 조회에 실패했습니다.");
         }
 
+        Data4LibraryErrors.check(response.response().errCode(), response.response().error());
         LoanItemSearchApiResponse.Response body = response.response();
         List<PopularLoanBookItem> items = body.docs() == null
             ? List.of()
@@ -65,7 +74,7 @@ public class Data4LibraryPopularBookProvider implements PopularLoanBookProvider 
                 .map(this::toItem)
                 .toList();
 
-        return new PopularLoanBookResult(items, body.numFound());
+        return new PopularLoanBookResult(items, body.totalCount());
     }
 
     private PopularLoanBookItem toItem(LoanItemSearchApiResponse.Doc doc) {

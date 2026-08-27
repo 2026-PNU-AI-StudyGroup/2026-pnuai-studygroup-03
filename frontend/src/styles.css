@@ -25,5 +25,330 @@ h1,h2,h3,p { margin-top: 0; }.hero h1 { font: 600 clamp(50px,6vw,77px)/1.08 'Pla
 .auth { min-height:100vh; display:grid; grid-template-columns:.9fr 1.1fr; background:#e4efe7; }.auth>.logo { padding:35px; align-self:start; }.auth form { background:#fffdf9; padding:11vh max(9vw,50px); }.auth form h1 { font:600 38px/1.25 'Playfair Display','Gowun Dodum',serif; letter-spacing:-2px; margin:0 0 32px; }.auth label { display:block; font-size:12px; color:#52665a; margin-bottom:17px; }.auth input { display:block; width:100%; border:0; border-bottom:1px solid #d3d9d3; padding:12px 2px; margin-top:7px; font:14px 'Gowun Dodum'; outline-color:#315b4c; }.auth .primary-link { border:0; width:100%; justify-content:space-between; margin-top:14px; }.auth-switch { text-align:center; color:#7c8880; font-size:12px; margin-top:22px; }.auth-switch a { color:#dd6844; margin-left:4px; }.role-choice { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin:7px 0 17px; }.role-choice button { border:1px solid #d8ded8; padding:10px; background:#fff; font-size:12px; color:#65756c; }.role-choice button.selected { background:#315b4c; color:#fff; border-color:#315b4c; }
 @media(max-width:760px){.app-header nav{display:none;position:absolute;top:62px;left:0;right:0;background:#fffdf9;padding:15px 20px}.app-header nav.open{display:grid;gap:15px}.header-actions{gap:9px}.header-cta{display:none}.mobile-menu{display:block}.quick-links{margin:-25px 15px 65px;display:block}.quick-links a{min-height:75px;padding:16px}.home-popular{margin:0 20px 70px}.home-book{grid-template-columns:115px 1fr;gap:18px;padding:13px}.home-book .book-cover{height:175px}.home-book h3{font-size:23px;margin:10px 0 4px}.home-book .book-description,.home-book .tags{display:none}.page,.center-page{padding:45px 20px 75px}.page-title{font-size:37px}.recommend-layout{grid-template-columns:1fr;margin-top:28px}.source-book{display:grid;grid-template-columns:82px 1fr;gap:15px;padding:16px}.source-book .book-cover{height:120px}.source-book>div{margin:0}.source-book h2{font-size:21px}.selector{padding:20px}.condition-summary{align-items:start}.condition-summary button{display:none}.result-heading{margin:60px 0 23px;display:block}.result-heading h2{font-size:28px}.recommend-cards{grid-template-columns:1fr}.recommend-card{display:grid;grid-template-columns:115px 1fr}.recommend-card>.book-cover{height:170px}.recommend-copy{padding:13px}.recommend-copy h3{font-size:19px}.recommend-copy .ai-reason{min-height:0;margin:10px 0!important}.metrics{display:none}.today-card{padding:18px;grid-template-columns:105px 1fr;gap:18px}.today-card .book-cover{height:150px}.today-card h2{font-size:23px;margin:9px 0}.today-card blockquote,.today-card .book-description{display:none}.today-actions{margin-top:17px}.today-actions .secondary-button{display:none}.comparison{padding:20px;grid-template-columns:1fr 40px 1fr}.compare-book .book-cover{width:105px;height:150px}.compare-book h2{font-size:17px}.ai-insight{padding:20px}.ai-insight h2{font-size:18px}.compare-table{grid-template-columns:1fr}.compare-table div{border-bottom:1px solid #e9e8e2}.shelf-tabs{gap:13px;overflow:auto}.shelf-tabs button{white-space:nowrap;font-size:11px}.shelf-list>article{grid-template-columns:65px 1fr;padding:12px;gap:13px}.shelf-list .book-cover{height:94px}.shelf-list h2{font-size:17px}.shelf-list>article>button{grid-column:2;text-align:left;padding:0}.dash-stats{gap:7px}.dash-stats div{padding:15px}.dash-stats b{font-size:28px}.dash-stats span{font-size:10px}.curation-maker{grid-template-columns:1fr}.curation-maker>div:first-child,.curation-result{padding:25px}.auth{grid-template-columns:1fr}.auth>.logo{padding:25px}.auth form{padding:50px 30px}.auth form h1{font-size:32px}}
 .user-name{color:#456054;font-size:12px}.form-error{color:#d4513b;font-size:11px;margin:-4px 0 8px}.restricted{max-width:620px;margin:0 auto;padding:130px 20px;text-align:center}.restricted>svg{color:#df6843}.restricted h1{font:600 34px 'Playfair Display','Gowun Dodum',serif;margin:22px 0 10px}.restricted p{color:#708076;font-size:13px;margin-bottom:25px}.restricted .primary-link{border:0}
-.operations-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:36px;align-items:start}.operation-panel{background:#fffdf9;padding:28px;box-shadow:0 8px 30px #1b36200d}.operation-heading{display:flex;justify-content:space-between;gap:18px}.operation-heading h2{font:600 25px 'Playfair Display','Gowun Dodum',serif;margin:13px 0 7px}.operation-heading p{font-size:12px;line-height:1.7;color:#718076;margin:0}.file-input{display:none}.upload-dropzone{width:100%;min-height:145px;margin:24px 0 14px;border:1.5px dashed #9daf9f;background:#f4f7f2;color:#496154;display:grid;place-content:center;gap:7px;text-align:center}.upload-dropzone svg{margin:auto;color:#df6843}.upload-dropzone b{font-size:13px}.upload-dropzone span{font-size:11px;color:#7b8b80}.upload-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #e4e8e2;margin:15px 0}.upload-summary div{padding:11px 6px;text-align:center;border-right:1px solid #e4e8e2}.upload-summary div:last-child{border:0}.upload-summary b,.curation-count b{display:block;font:24px 'Playfair Display',serif;color:#315b4c}.upload-summary span,.curation-count span{font-size:10px;color:#748278}.operation-message{display:flex;gap:6px;align-items:center;font-size:11px;color:#427258;background:#edf5ee;padding:10px}.candidate-header{margin-top:22px}.candidate-header h3{font-size:14px;margin:0 0 4px}.candidate-header span{font-size:10px;color:#7b897f}.candidate-list article{display:flex;align-items:center;gap:10px;border-bottom:1px solid #e7e9e4;padding:12px 0}.candidate-list article>b{width:20px;color:#df6843}.candidate-list article>div{flex:1;display:grid;gap:4px}.candidate-list strong{font-size:12px}.candidate-list span{font-size:10px;color:#7b897f}.candidate-list em{font-size:10px;color:#df6843;font-style:normal}.curation-count{text-align:right;min-width:62px}.curation-list{display:grid;gap:11px;margin-top:22px}.curation-list article{border:1px solid #e5e8e3;padding:17px}.curation-status{display:flex;justify-content:space-between;font-size:10px;color:#718076}.curation-status .public,.curation-status .private{padding:4px 6px}.public{background:#e4f0e6;color:#417454}.private{background:#f4e6dd;color:#a35d42}.curation-list h3{font:600 18px 'Playfair Display','Gowun Dodum',serif;margin:12px 0 7px}.curation-list p{font-size:11px;line-height:1.65;color:#68796f;margin:0}.curation-list footer{display:flex;justify-content:space-between;padding:14px 0 0;margin-top:13px;border-top:1px solid #e8e9e4;font-size:10px;color:#7a887f}.curation-list footer div{display:flex;gap:10px}.curation-list footer button{display:flex;align-items:center;gap:4px;background:none;font-size:11px;color:#466255}.curation-list .delete-button{color:#c95f47}.empty-operation{text-align:center;padding:50px 0;color:#718076;font-size:12px}.empty-operation svg{color:#df6843}.empty-operation button{margin-top:10px;display:inline-flex;gap:5px;align-items:center;color:#315b4c;background:none}.modal-backdrop{position:fixed;inset:0;background:#1b2d2580;z-index:10;display:grid;place-content:center;padding:20px}.curation-modal{width:min(440px,calc(100vw - 40px));background:#fffdf9;padding:30px;box-shadow:0 20px 50px #12231955}.curation-modal>div:first-child{display:flex;justify-content:space-between}.modal-close{background:none;font-size:25px;color:#52675b}.curation-modal h2{font:600 25px 'Playfair Display','Gowun Dodum',serif;margin:18px 0 22px}.curation-modal label{display:block;font-size:11px;color:#52675b;margin:14px 0}.curation-modal input:not([type=checkbox]),.curation-modal textarea{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:10px;border:1px solid #d8ded7;font:13px 'Gowun Dodum';background:white}.curation-modal textarea{height:88px;resize:vertical}.curation-modal .public-check{display:flex;gap:7px;align-items:center}.curation-modal .primary-link{border:0;width:100%;justify-content:center;margin-top:10px}
+.operations-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:36px;align-items:start}.operation-panel{background:#fffdf9;padding:28px;box-shadow:0 8px 30px #1b36200d}.operation-heading{display:flex;justify-content:space-between;gap:18px}.operation-heading h2{font:600 25px 'Playfair Display','Gowun Dodum',serif;margin:13px 0 7px}.operation-heading p{font-size:12px;line-height:1.7;color:#718076;margin:0}.file-input{display:none}.upload-dropzone{width:100%;min-height:145px;margin:24px 0 14px;border:1.5px dashed #9daf9f;background:#f4f7f2;color:#496154;display:grid;place-content:center;gap:7px;text-align:center}.upload-dropzone svg{margin:auto;color:#df6843}.upload-dropzone b{font-size:13px}.upload-dropzone span{font-size:11px;color:#7b8b80}.upload-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #e4e8e2;margin:15px 0}.upload-summary.compact{grid-template-columns:repeat(2,1fr)}.upload-summary div{padding:11px 6px;text-align:center;border-right:1px solid #e4e8e2}.upload-summary div:last-child{border:0}.upload-summary b,.curation-count b{display:block;font:24px 'Playfair Display',serif;color:#315b4c}.upload-summary span,.curation-count span{font-size:10px;color:#748278}.operation-message{display:flex;gap:6px;align-items:center;font-size:11px;color:#427258;background:#edf5ee;padding:10px}.operation-message.error{color:#a83f2c;background:#fbeae5}.candidate-header{margin-top:22px}.candidate-header h3{font-size:14px;margin:0 0 4px}.candidate-header span{font-size:10px;color:#7b897f}.candidate-list article{display:flex;align-items:center;gap:10px;border-bottom:1px solid #e7e9e4;padding:12px 0}.candidate-list article>b{width:20px;color:#df6843}.candidate-list article>div{flex:1;display:grid;gap:4px}.candidate-list strong{font-size:12px}.candidate-list span{font-size:10px;color:#7b897f}.candidate-list em{font-size:10px;color:#df6843;font-style:normal}.curation-count{text-align:right;min-width:62px}.curation-list{display:grid;gap:11px;margin-top:22px}.curation-list article{border:1px solid #e5e8e3;padding:17px}.curation-status{display:flex;justify-content:space-between;font-size:10px;color:#718076}.curation-status .public,.curation-status .private{padding:4px 6px}.public{background:#e4f0e6;color:#417454}.private{background:#f4e6dd;color:#a35d42}.curation-list h3{font:600 18px 'Playfair Display','Gowun Dodum',serif;margin:12px 0 7px}.curation-list p{font-size:11px;line-height:1.65;color:#68796f;margin:0}.curation-list footer{display:flex;justify-content:space-between;padding:14px 0 0;margin-top:13px;border-top:1px solid #e8e9e4;font-size:10px;color:#7a887f}.curation-list footer div{display:flex;gap:10px}.curation-list footer button{display:flex;align-items:center;gap:4px;background:none;font-size:11px;color:#466255}.curation-list .delete-button{color:#c95f47}.empty-operation{text-align:center;padding:50px 0;color:#718076;font-size:12px}.empty-operation svg{color:#df6843}.empty-operation button{margin-top:10px;display:inline-flex;gap:5px;align-items:center;color:#315b4c;background:none}.modal-backdrop{position:fixed;inset:0;background:#1b2d2580;z-index:10;display:grid;place-content:center;padding:20px}.curation-modal{width:min(440px,calc(100vw - 40px));background:#fffdf9;padding:30px;box-shadow:0 20px 50px #12231955}.curation-modal>div:first-child{display:flex;justify-content:space-between}.modal-close{background:none;font-size:25px;color:#52675b}.curation-modal h2{font:600 25px 'Playfair Display','Gowun Dodum',serif;margin:18px 0 22px}.curation-modal label{display:block;font-size:11px;color:#52675b;margin:14px 0}.curation-modal input:not([type=checkbox]),.curation-modal textarea{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:10px;border:1px solid #d8ded7;font:13px 'Gowun Dodum';background:white}.curation-modal textarea{height:88px;resize:vertical}.curation-modal .public-check{display:flex;gap:7px;align-items:center}.curation-modal .primary-link{border:0;width:100%;justify-content:center;margin-top:10px}
 @media(max-width:760px){.operations-grid{grid-template-columns:1fr}.operation-panel{padding:21px}.upload-summary b{font-size:20px}.curation-list footer{display:block}.curation-list footer div{margin-top:10px}.librarian-operations{padding-top:45px}}
+
+/* Report-demo librarian studio */
+.librarian-title-row{display:flex;align-items:end;justify-content:space-between;gap:24px}.librarian-title-row .secondary-button{margin-bottom:18px;white-space:nowrap}.librarian-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:28px 0}.librarian-flow article{display:flex;gap:11px;padding:16px;background:#fffdf9;border:1px solid #e7e9e4}.librarian-flow b{color:#df6843;font-size:13px}.librarian-flow div{display:grid;gap:5px}.librarian-flow strong{font-size:13px;color:#315b4c}.librarian-flow span{font-size:11px;line-height:1.55;color:#718076}.curation-result>div p{display:flex;align-items:flex-start;gap:9px}.curation-result>div p span{display:grid;gap:3px;line-height:1.55;color:#66766e}.curation-result>div p strong{font-size:12px;color:#315b4c}.curation-result>div p b{min-width:18px}
+.librarian-greeting{padding:8px 11px;background:#edf3ed;color:#315b4c;font-size:12px;font-weight:700}
+@media(max-width:760px){.librarian-title-row{display:block}.librarian-title-row .secondary-button{margin:4px 0 22px}.librarian-flow{grid-template-columns:1fr;gap:8px}.librarian-flow article{padding:14px}.librarian .dash-stats{margin:22px 0}.curation-result>div p{padding-bottom:9px}}
+
+/* Keep the three home recommendations visually connected. */
+.home-popular{margin-bottom:88px}
+@media(max-width:760px){.home-popular{margin-bottom:52px}}
+
+/* ── 백엔드 연동으로 새로 추가된 화면/상태용 스타일 ────────────────────────── */
+
+/* 표지 없음·깨짐 자리표시자 */
+.cover-fallback,.book-cover.cover-broken { display:grid; place-items:center; background:#efece2; color:#a9b2a5; min-height:150px; }
+
+/* 안내·오류 메시지 */
+.api-message { display:flex; align-items:flex-start; gap:6px; }
+.api-message.success { color:#3d7a55; }
+.session-expired { max-width:1045px; margin:0 auto; padding:11px 20px; background:#fae6da; color:#c1522b; font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.session-expired button { background:none; color:inherit; border-bottom:1px solid; font-size:11px; }
+.login-hint { margin:14px 0; padding:12px 14px; background:#fffdf9; border:1px dashed #d6d5cd; color:#56655d; font-size:12px; }
+.login-hint a { color:#df6843; border-bottom:1px solid; }
+
+/* 도서관 선택 */
+.home-library { max-width:1045px; margin:0 auto; padding:0 20px 30px; }
+.library-picker { display:grid; gap:.45rem; margin:0 0 1.1rem; color:#2f352e; font-size:.85rem; font-weight:700; text-align:left; }
+.library-picker > span { display:inline-flex; align-items:center; gap:6px; }
+.library-picker select { max-width:26rem; padding:.65rem .7rem; border:1px solid #d6d5cd; border-radius:.4rem; background:#fff; font:inherit; }
+.library-picker.compact select { max-width:16rem; }
+.library-picker.empty-library { display:flex; align-items:flex-start; gap:9px; font-weight:400; color:#8a6a4f; background:#fdf3ea; padding:13px 15px; line-height:1.65; font-size:12px; }
+.library-picker-hint { color:#718076; font-size:12px; margin:0 0 14px; }
+
+/* 인기 도서 목록 */
+.popular-filters { display:flex; flex-wrap:wrap; gap:16px; margin:26px 0 30px; }
+.popular-filters label { display:grid; gap:.4rem; font-size:.8rem; font-weight:700; color:#2f352e; }
+.popular-filters select { padding:.55rem .7rem; border:1px solid #d6d5cd; border-radius:.4rem; background:#fff; font:inherit; }
+.popular-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.popular-results { position:relative; min-height:150px; }
+.popular-results.is-loading .popular-grid { opacity:.45; pointer-events:none; }
+.popular-loading { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center; gap:9px; color:#365746; font-size:13px; font-weight:700; background:#fffdf9b8; }
+.popular-loading svg { animation:popular-loading-spin .8s linear infinite; }
+@keyframes popular-loading-spin { to { transform:rotate(360deg); } }
+.popular-card { position:relative; display:flex; gap:14px; padding:16px; background:#fffdf9; }
+.popular-card .book-cover,.popular-card .cover-fallback { width:82px; height:118px; object-fit:cover; flex:0 0 auto; min-height:0; }
+.popular-card h2 { font:600 16px/1.4 'Gowun Dodum',sans-serif; margin:0 0 4px; }
+.popular-card p { margin:0 0 6px; font-size:12px; color:#718076; }
+.popular-card .rank { position:absolute; top:10px; right:12px; font:700 13px 'DM Mono',monospace; color:#df6843; }
+.popular-loan { display:block; font-size:11px; color:#8b9990; margin-bottom:8px; }
+.text-link { display:inline-flex; align-items:center; gap:3px; font-size:11px; color:#718076; margin-top:6px; }
+.text-link:hover { color:#df6843; }
+.pagination { display:flex; justify-content:center; align-items:center; gap:16px; margin:34px 0 0; font-size:12px; color:#56655d; }
+.pagination button { padding:8px 14px; border:1px solid #9daf9f; background:transparent; color:#365746; font-size:12px; }
+.pagination button:disabled { opacity:.35; cursor:default; }
+
+/* 도서 검색 */
+.book-search { display:flex; gap:10px; margin:26px 0 24px; max-width:34rem; }
+.book-search input { flex:1; padding:.75rem .85rem; border:1px solid #d6d5cd; border-radius:.4rem; background:#fff; font:inherit; }
+.book-search button { display:inline-flex; align-items:center; gap:7px; padding:0 18px; background:#e96e44; color:#fffaf2; font-size:13px; }
+.search-results { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.search-book { display:flex; gap:14px; padding:16px; background:#fffdf9; }
+.search-book .book-cover,.search-book .cover-fallback { width:76px; height:110px; object-fit:cover; flex:0 0 auto; min-height:0; }
+.search-book h2 { font:600 15px/1.4 'Gowun Dodum',sans-serif; margin:0 0 4px; }
+.search-book p { margin:0 0 8px; font-size:12px; color:#718076; }
+.search-book span { font-size:11px; color:#df6843; display:inline-flex; align-items:center; gap:3px; }
+
+/* 도서 상세 */
+.detail-top { display:grid; grid-template-columns:210px 1fr; gap:34px; align-items:start; margin-bottom:44px; }
+.detail-top .book-cover,.detail-top .cover-fallback { width:100%; height:300px; object-fit:cover; }
+.detail-top > div > p { font-size:12px; color:#718076; }
+.detail-actions { display:flex; align-items:center; gap:10px; margin-top:18px; }
+.detail-actions .save { position:static; }
+.detail-block { margin-bottom:40px; }
+.detail-block h2 { font:600 22px/1.3 'Playfair Display','Gowun Dodum',serif; margin:0 0 14px; }
+.detail-block-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+.region-select { display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#56655d; margin-bottom:14px; }
+.region-select select { padding:.45rem .6rem; border:1px solid #d6d5cd; border-radius:.4rem; background:#fff; font:inherit; font-size:12px; }
+.toc-list { margin:0; padding-left:1.3rem; color:#4a5b50; font-size:13px; line-height:2; }
+.library-row { display:grid; grid-template-columns:1fr auto auto; gap:16px; align-items:center; padding:13px 0; border-bottom:1px solid #e6e3d9; font-size:13px; margin:0; }
+.library-row span { color:#8b9990; font-size:12px; font-family:'DM Mono',monospace; }
+.library-row em { font-style:normal; font-size:11px; color:#a4736a; }
+.library-row em.available { color:#3d7a55; }
+
+/* 나의 책장 */
+.shelf-collections { display:flex; flex-wrap:wrap; gap:9px; margin:0 0 18px; }
+.shelf-collections button { padding:9px 15px; border:1px solid #d6d5cd; background:#fffdf9; font-size:12px; color:#56655d; display:inline-flex; gap:7px; }
+.shelf-collections button.active { border-color:#e96e44; color:#c1522b; }
+.shelf-collections b { font-family:'DM Mono',monospace; }
+.shelf-delete { display:inline-flex; align-items:center; gap:6px; margin:0 0 16px; font-size:11px; }
+
+/* 사서 화면 */
+.librarian-keywords { margin:0 0 30px; }
+.curation-save-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:16px; }
+.recent-curations { margin-top:52px; }
+.recent-curations h2 { font:600 24px/1.3 'Playfair Display','Gowun Dodum',serif; margin:0 0 16px; }
+.editing-books { background:#f8f6f0; padding:12px 14px; font-size:12px; color:#56655d; margin-bottom:4px; }
+.editing-books ol { margin:8px 0 0; padding-left:1.2rem; line-height:1.9; }
+
+@media (max-width:900px) {
+  .popular-grid,.search-results { grid-template-columns:repeat(2,1fr); }
+  .detail-top { grid-template-columns:1fr; }
+}
+@media (max-width:640px) {
+  .popular-grid,.search-results { grid-template-columns:1fr; }
+}
+
+/* ── 후보군 자동 산출·재탐색·서가 위치 ─────────────────────────────────────── */
+
+/* 도서관 선택 + 직접 만들기 */
+.library-picker-block { margin: 0 0 1.4rem; }
+.library-finder { margin-top: 10px; padding: 16px; background: #fffdf9; border: 1px solid #e6e3d9; }
+.library-finder-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.library-finder-hint { margin: 6px 0 14px; font-size: 12px; color: #718076; line-height: 1.7; }
+.library-finder-controls { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+.library-finder-controls select { padding: .55rem .7rem; border: 1px solid #d6d5cd; border-radius: .4rem; background: #fff; font: inherit; font-size: 12px; }
+.library-finder-search { width: 100%; margin: 12px 0 8px; padding: .6rem .7rem; border: 1px solid #d6d5cd; border-radius: .4rem; background: #fff; font: inherit; font-size: 12px; }
+.library-finder-list { display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.library-finder-list button { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: #f8f6f0; border: 1px solid transparent; text-align: left; font-size: 12px; }
+.library-finder-list button:hover:not(:disabled) { border-color: #e96e44; }
+.library-finder-list button.selected { border-color: #e96e44; background: #fae6da; }
+.library-finder-list button:disabled { opacity: .5; cursor: default; }
+.library-finder-list span { color: #8b9990; font-size: 11px; white-space: nowrap; }
+
+/* 후보군 산출 진행 상태 */
+.job-progress { margin: 14px 0 0; padding: 13px 15px; font-size: 12px; line-height: 1.7; display: grid; gap: 8px; }
+.job-progress.running { background: #f4f1e8; color: #4a5b50; }
+.job-progress.done { background: #eef7f0; color: #2f6a45; display: flex; align-items: flex-start; gap: 8px; }
+.job-progress.failed { background: #fdeee8; color: #b34a29; display: flex; align-items: flex-start; gap: 8px; }
+.job-progress-head { display: flex; align-items: center; gap: 8px; }
+.job-progress-bar { height: 5px; background: #e2ded1; overflow: hidden; border-radius: 3px; }
+.job-progress-bar span { display: block; height: 100%; background: #e96e44; transition: width .4s ease; }
+.job-progress small { color: #8b9990; font-size: 11px; }
+.spin { animation: wakebook-spin 1.1s linear infinite; }
+@keyframes wakebook-spin { to { transform: rotate(360deg); } }
+
+/* 서가 위치 */
+.shelf-location { display: flex; align-items: center; gap: 5px; margin: 8px 0; font-size: 11px; color: #56655d; }
+.shelf-location b { font-family: 'DM Mono', monospace; color: #2f4a3a; }
+
+/* 책장 담기 상태 선택 */
+.save-wrap { position: absolute; top: 12px; right: 12px; z-index: 3; }
+.recommend-card .save-wrap .save { position: static; }
+.save-status-menu { position: absolute; right: 0; top: 34px; width: 11.5rem; background: #fffdf9; border: 1px solid #d6d5cd; box-shadow: 0 8px 22px rgba(32, 51, 44, .13); padding: 10px; display: grid; gap: 3px; }
+.save-status-menu b { font-size: 11px; color: #718076; padding: 2px 4px 6px; }
+.save-status-menu button { display: flex; align-items: center; gap: 6px; padding: 7px 8px; background: none; font-size: 12px; text-align: left; color: #2f4a3a; }
+.save-status-menu button:hover:not(:disabled) { background: #f4f1e8; }
+.detail-actions .save-wrap { position: static; }
+
+/* 재탐색 */
+.explore-types { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 4px 0 16px; }
+.explore-types button { display: grid; gap: 3px; padding: 12px 13px; background: #fffdf9; border: 1px solid #e6e3d9; text-align: left; }
+.explore-types button b { font-size: 13px; color: #2f4a3a; }
+.explore-types button span { font-size: 11px; color: #8b9990; }
+.explore-types button.chosen { border-color: #e96e44; background: #fae6da; }
+.explore-types button:disabled { opacity: .5; cursor: default; }
+
+.recommend-links { display: flex; flex-wrap: wrap; gap: 14px; }
+.recommend-links a { font-size: 11px; color: #df6843; display: inline-flex; align-items: center; gap: 2px; }
+.more-button { display: inline-flex; align-items: center; gap: 7px; margin: 22px auto 0; }
+.detail-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 18px; }
+
+@media (max-width: 640px) {
+  .explore-types { grid-template-columns: 1fr; }
+}
+.library-finder-list button b { flex: 1; }
+
+/* 도서관별 잠자는 책 목록 */
+.library-books-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 0 0 28px; }
+.library-books-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.library-book-card { position: relative; display: flex; gap: 15px; padding: 17px; background: #fffdf9; }
+.library-book-card .book-cover, .library-book-card .cover-fallback { width: 88px; height: 126px; object-fit: cover; flex: 0 0 auto; min-height: 0; }
+.library-book-card h2 { font: 600 15px/1.45 'Gowun Dodum', sans-serif; margin: 0 0 4px; padding-right: 24px; }
+.library-book-card > div > p { margin: 0 0 6px; font-size: 12px; color: #718076; }
+.library-book-summary { font-size: 11px; line-height: 1.75; color: #56655d;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.library-book-card .save-wrap { top: 10px; right: 10px; }
+
+@media (max-width: 900px) { .library-books-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .library-books-grid { grid-template-columns: 1fr; } }
+.librarian-title-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.trend-operation-panel { grid-column: 1 / -1; }
+.trend-operation-count { min-width: 76px; text-align: right; }
+.trend-operation-count b { display: block; color: #315b4c; font: 30px 'Playfair Display', serif; }
+.trend-operation-count span { color: #748278; font-size: 10px; }
+.trend-operation-status { display: flex; align-items: center; gap: 12px; margin: 22px 0 14px; padding: 15px; color: #315b4c; background: #edf3ed; }
+.trend-operation-status > div { display: grid; gap: 4px; }
+.trend-operation-status b { font-size: 13px; }
+.trend-operation-status span { color: #718076; font-size: 11px; }
+.trend-operation-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+.trend-operation-actions .primary-link { border: 0; }
+
+/* 실시간 트렌드 큐레이션 */
+.trend-hero { display:grid; grid-template-columns:1fr 190px; gap:40px; align-items:center; padding:45px 50px; margin-bottom:24px; background:#e4efe7; overflow:hidden; }
+.trend-hero .page-title { margin-bottom:18px; }
+.trend-live-mark { width:166px; height:166px; justify-self:end; border-radius:50%; background:#f1b55a; color:#24483b; display:grid; place-content:center; text-align:center; position:relative; }
+.trend-live-mark::after { content:''; position:absolute; width:126px; height:126px; border:1px solid rgba(36,72,59,.25); border-radius:50%; inset:19px; }
+.trend-live-mark span,.trend-live-mark b,.trend-live-mark small { position:relative; z-index:1; }
+.trend-live-mark span { display:flex; justify-content:center; align-items:center; gap:5px; font:11px 'DM Mono',monospace; letter-spacing:1px; }
+.trend-live-mark b { font:600 47px/1 'Playfair Display',serif; margin:8px 0 2px; }
+.trend-live-mark small { font-size:10px; }
+.trend-controls { min-height:96px; padding:18px 22px; margin-bottom:22px; background:#fffdf9; display:flex; justify-content:space-between; align-items:flex-start; gap:24px; border:1px solid #ebe9e2; }
+.trend-controls .library-picker-block { margin:0; flex:1; }
+.trend-controls .library-picker { margin-bottom:6px; }
+.trend-controls .library-picker-hint,.trend-controls .text-link { margin-bottom:0; }
+.trend-date { flex:0 0 auto; text-align:right; padding:5px 0; }
+.trend-date span { display:block; font-size:13px; font-weight:700; color:#315b4c; }
+.trend-date small { display:flex; justify-content:flex-end; align-items:center; gap:5px; margin-top:8px; color:#859087; font-size:10px; }
+.trend-fallback { display:flex; align-items:center; gap:7px; padding:12px 15px; margin:0 0 20px; color:#8a6238; background:#fdf1d9; font-size:12px; }
+.trend-loading { min-height:180px; background:#fffdf9; display:flex; justify-content:center; align-items:center; gap:13px; color:#df6843; }
+.trend-loading div { display:grid; gap:5px; }
+.trend-loading b { color:#315b4c; font-size:13px; }
+.trend-loading span { color:#859087; font-size:11px; }
+.trend-empty { min-height:250px; padding:45px 20px; background:#fffdf9; border:1px solid #ebe9e2; text-align:center; display:grid; place-content:center; justify-items:center; }
+.trend-empty>svg { color:#df6843; }
+.trend-empty h2 { font:600 25px 'Playfair Display','Gowun Dodum',serif; margin:16px 0 8px; }
+.trend-empty p { max-width:480px; color:#718076; font-size:12px; line-height:1.8; margin-bottom:16px; }
+.trend-list { display:grid; gap:24px; }
+.trend-card { background:#fffdf9; border-top:3px solid #315b4c; box-shadow:0 8px 30px rgba(27,54,32,.045); }
+.trend-card-head { display:grid; grid-template-columns:72px 1fr; gap:25px; padding:29px 32px 27px; }
+.trend-rank { padding-top:3px; border-right:1px solid #e4e6df; display:grid; align-content:start; }
+.trend-rank b { color:#df6843; font:600 32px/1 'Playfair Display',serif; }
+.trend-rank span { margin-top:7px; color:#8b9990; font:9px 'DM Mono',monospace; letter-spacing:1px; }
+.trend-meta { min-height:24px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.trend-meta span { display:inline-flex; align-items:center; gap:4px; padding:5px 7px; color:#6e7c73; background:#f1f0ea; font-size:10px; }
+.trend-meta span.confirmed { color:#34704c; background:#e5f1e8; }
+.trend-topic h2 { font:600 27px/1.35 'Playfair Display','Gowun Dodum',serif; margin:11px 0 8px; }
+.trend-topic>p { max-width:780px; margin:0 0 11px; color:#586b60; font-size:13px; line-height:1.8; }
+.trend-topic small { color:#929d96; font-size:10px; }
+.trend-recommendation { padding:25px 32px 30px 129px; background:#edf3ed; }
+.trend-recommendation .eyebrow { margin-bottom:8px; }
+.trend-recommendation>h3 { font:600 21px/1.45 'Playfair Display','Gowun Dodum',serif; color:#294d3e; margin:0 0 18px; }
+.trend-books { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+.trend-book { min-width:0; display:grid; grid-template-columns:94px 1fr; gap:15px; padding:13px; background:#fffdf9; border:1px solid #e1e6df; }
+.trend-book>a { min-width:0; }
+.trend-book .book-cover,.trend-book .cover-fallback { width:94px; height:136px; min-height:0; object-fit:cover; }
+.trend-book-copy { min-width:0; }
+.trend-book-copy>span { color:#df6843; font-size:9px; }
+.trend-book-copy h3 { font:600 16px/1.45 'Gowun Dodum',sans-serif; margin:6px 0 3px; }
+.trend-book-author { color:#87938c; font-size:10px; margin-bottom:9px; }
+.trend-book-reason { display:flex; align-items:flex-start; gap:5px; color:#50665a; font-size:10px; line-height:1.65; margin-bottom:8px; }
+.trend-book-reason svg { flex:0 0 auto; color:#df6843; margin-top:2px; }
+.trend-book-links { display:flex; flex-wrap:wrap; gap:12px; }
+.trend-book-links a { display:inline-flex; align-items:center; gap:2px; color:#426050; font-size:10px; border-bottom:1px solid #a9b5ae; padding-bottom:2px; }
+.trend-sources { display:grid; grid-template-columns:280px 1fr; gap:35px; margin-top:58px; padding-top:33px; border-top:1px solid #dcded7; }
+.trend-sources h2 { font:600 25px 'Playfair Display','Gowun Dodum',serif; margin:0 0 8px; }
+.trend-sources>div>p:last-child { color:#718076; font-size:11px; line-height:1.7; }
+.source-list { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.source-list a { position:relative; min-height:112px; padding:15px; background:#fffdf9; border:1px solid #e4e5df; display:grid; align-content:center; gap:5px; }
+.source-list a:hover { border-color:#9daf9f; }
+.source-list span { color:#df6843; font-size:9px; }
+.source-list b { color:#315b4c; font-size:12px; }
+.source-list small { color:#8b9990; font-size:9px; }
+.source-list svg { position:absolute; right:11px; top:11px; color:#8b9990; }
+
+@media (max-width:900px) {
+  .trend-hero { grid-template-columns:1fr 145px; padding:38px; }
+  .trend-live-mark { width:138px; height:138px; }
+  .trend-live-mark::after { width:106px; height:106px; inset:15px; }
+  .trend-recommendation { padding-left:32px; }
+  .trend-sources { grid-template-columns:1fr; gap:15px; }
+}
+
+/* Public curations */
+.public-curations-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:28px; margin-bottom:38px; }
+.public-curations-heading .lead { margin-bottom:0; }
+.public-curations-heading>strong { color:#df6843; font:600 34px 'Playfair Display',serif; white-space:nowrap; }
+.public-curations-heading>strong span { display:block; color:#718076; font:10px 'DM Mono',monospace; text-align:right; }
+.curation-loading { min-height:260px; display:grid; place-items:center; color:#718076; font-size:13px; }
+.curation-gallery { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.public-curation-card { min-width:0; background:#fffdf9; border:1px solid #ebe7de; box-shadow:0 9px 25px #1b36200d; transition:transform .2s,box-shadow .2s; }
+.public-curation-card:hover { transform:translateY(-4px); box-shadow:0 14px 28px #1b36201a; }
+.public-curation-cover { position:relative; aspect-ratio:16/10; background:#e4efe7; overflow:hidden; }
+.public-curation-cover .book-cover { width:100%; height:100%; object-fit:contain; padding:18px; }
+.public-curation-cover .cover-fallback { display:grid; place-items:center; color:#315b4c; }
+.public-curation-cover>span { position:absolute; right:10px; bottom:10px; padding:5px 8px; background:#f2b85f; color:#2f4439; font:11px 'DM Mono',monospace; }
+.public-curation-copy { min-height:230px; padding:22px; display:flex; flex-direction:column; }
+.public-curation-label { display:flex; align-items:center; gap:6px; color:#df6843; font-size:11px; }
+.public-curation-copy h2 { margin:15px 0 10px; font:600 23px/1.35 'Playfair Display','Gowun Dodum',serif; overflow-wrap:anywhere; }
+.public-curation-copy p { color:#718076; font-size:12px; line-height:1.75; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.public-curation-copy b { margin-top:auto; padding-top:18px; border-top:1px solid #ece9e1; display:flex; align-items:center; justify-content:space-between; color:#315b4c; font-size:12px; }
+.empty-curations { min-height:230px; display:grid; place-content:center; justify-items:center; gap:13px; color:#6f7d75; border-top:1px solid #d9d9d1; border-bottom:1px solid #d9d9d1; }
+.empty-curations p { margin:0; font-size:13px; }
+.curation-pagination button { width:36px; height:34px; padding:0; display:grid; place-items:center; }
+.curation-back { display:inline-flex; align-items:center; gap:8px; color:#52675b; font-size:12px; margin-bottom:38px; border-bottom:1px solid #a9b5ae; padding-bottom:6px; }
+.curation-detail-heading { max-width:780px; padding:0 0 45px; border-bottom:1px solid #d9d9d1; }
+.curation-detail-heading h1 { margin:0 0 18px; font:600 48px/1.22 'Playfair Display','Gowun Dodum',serif; overflow-wrap:anywhere; }
+.curation-detail-heading>p:not(.eyebrow) { max-width:690px; color:#56685e; font-size:14px; line-height:1.85; }
+.curation-detail-heading>div { display:flex; flex-wrap:wrap; gap:18px; margin-top:25px; color:#748178; font-size:11px; }
+.curation-detail-heading>div span { display:flex; align-items:center; gap:6px; }
+.curation-detail-books { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:38px; }
+.curation-detail-book { min-width:0; min-height:190px; display:grid; grid-template-columns:112px minmax(0,1fr); gap:20px; padding:18px; background:#fffdf9; border:1px solid #ebe7de; }
+.curation-book-cover { position:relative; width:112px; height:154px; background:#edf1eb; }
+.curation-book-cover .book-cover { width:100%; height:100%; object-fit:contain; }
+.curation-book-cover .cover-fallback { display:grid; place-items:center; color:#315b4c; }
+.curation-book-cover>span { position:absolute; left:-7px; top:-7px; width:30px; height:30px; display:grid; place-items:center; background:#df6843; color:white; font:10px 'DM Mono',monospace; }
+.curation-detail-book>div:last-child { min-width:0; display:flex; flex-direction:column; }
+.curation-detail-book small { color:#8a958e; font:9px 'DM Mono',monospace; overflow-wrap:anywhere; }
+.curation-detail-book h2 { margin:12px 0 8px; font:600 20px/1.35 'Playfair Display','Gowun Dodum',serif; overflow-wrap:anywhere; }
+.curation-detail-book p { color:#66766e; font-size:11px; line-height:1.65; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.curation-detail-book b { margin-top:auto; display:flex; align-items:center; gap:6px; color:#df6843; font-size:11px; }
+@media(max-width:900px){.curation-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.curation-detail-books{grid-template-columns:1fr}}
+@media(max-width:640px){.public-curations-heading{display:block}.public-curations-heading>strong{display:block;margin-top:22px;font-size:28px}.public-curations-heading>strong span{text-align:left}.curation-gallery{grid-template-columns:1fr}.public-curation-copy{min-height:205px}.curation-detail-heading h1{font-size:36px}.curation-detail-book{grid-template-columns:92px minmax(0,1fr);gap:15px;padding:14px}.curation-book-cover{width:92px;height:134px}.curation-detail-book h2{font-size:18px}.curation-detail-book p{display:none}}
+
+@media (max-width:640px) {
+  .trend-hero { display:block; padding:31px 24px; }
+  .trend-hero .lead br { display:none; }
+  .trend-live-mark { width:92px; height:92px; margin:25px 0 0 auto; }
+  .trend-live-mark::after { width:70px; height:70px; inset:10px; }
+  .trend-live-mark b { font-size:29px; margin:3px 0 0; }
+  .trend-live-mark span { font-size:8px; }
+  .trend-live-mark span svg { width:12px; }
+  .trend-live-mark small { font-size:8px; }
+  .trend-controls { display:block; padding:15px; }
+  .trend-date { text-align:left; border-top:1px solid #ebe9e2; padding-top:12px; }
+  .trend-date small { justify-content:flex-start; }
+  .trend-card-head { grid-template-columns:44px 1fr; gap:14px; padding:21px 18px; }
+  .trend-rank b { font-size:24px; }
+  .trend-topic h2 { font-size:21px; }
+  .trend-topic>p { font-size:12px; }
+  .trend-recommendation { padding:20px 18px; }
+  .trend-recommendation>h3 { font-size:18px; }
+  .trend-books { grid-template-columns:1fr; }
+  .trend-book { grid-template-columns:78px 1fr; padding:10px; gap:12px; }
+  .trend-book .book-cover,.trend-book .cover-fallback { width:78px; height:113px; }
+  .source-list { grid-template-columns:1fr; }
+}

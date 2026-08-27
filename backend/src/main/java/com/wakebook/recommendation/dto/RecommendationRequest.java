@@ -19,6 +19,9 @@ public record RecommendationRequest(
     String purpose,
 
     @NotBlank(message = "mood를 선택해 주세요.")
-    String mood
+    String mood,
+
+    /** 돌려받을 추천 도서 수. 생략하면 기본값을 쓴다. 후보군 전체를 그대로 내려 주지 않기 위한 상한이다. */
+    Integer limit
 ) {
 }

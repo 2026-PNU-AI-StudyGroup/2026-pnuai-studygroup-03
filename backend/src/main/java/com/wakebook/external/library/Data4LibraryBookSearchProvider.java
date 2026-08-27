@@ -42,6 +42,7 @@ public class Data4LibraryBookSearchProvider implements BookSearchProvider {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "BOOK_002", "도서 검색에 실패했습니다.");
         }
 
+        Data4LibraryErrors.check(response.response().errCode(), response.response().error());
         BookSearchApiResponse.Response body = response.response();
         List<BookSearchItem> items = body.docs() == null
             ? List.of()
@@ -50,7 +51,7 @@ public class Data4LibraryBookSearchProvider implements BookSearchProvider {
                 .map(this::toItem)
                 .toList();
 
-        return new BookSearchResult(items, body.numFound());
+        return new BookSearchResult(items, body.totalCount());
     }
 
     private BookSearchItem toItem(BookSearchApiResponse.Doc doc) {

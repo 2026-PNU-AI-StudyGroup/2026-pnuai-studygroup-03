@@ -7,7 +7,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record BookExistApiResponse(@JsonProperty("response") Response response) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Response(@JsonProperty("result") Result result) {
+    public record Response(
+        @JsonProperty("result") Result result,
+        @JsonProperty("errCode") String errCode,
+        @JsonProperty("error") String error
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -3,12 +3,19 @@ package com.wakebook.external.openai;
 import com.wakebook.common.ApiException;
 import com.wakebook.external.openai.dto.ChatCompletionApiRequest;
 import com.wakebook.external.openai.dto.ChatCompletionApiResponse;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+/**
+ * 기본 OpenAiClient 빈. {@code @Primary}가 필요한 이유는, 트렌드 판정 전용으로 더 큰 모델을 쓰는
+ * 두 번째 OpenAiClient 빈(TrendAiConfig#trendOpenAiClient)이 추가되면서 이 타입의 빈이 2개가 됐기
+ * 때문이다 — Qualifier 없이 OpenAiClient를 주입받는 나머지 서비스들은 항상 이 기본 빈을 받아야 한다.
+ */
+@Primary
 @Component
 public class OpenAiChatClient implements OpenAiClient {
 

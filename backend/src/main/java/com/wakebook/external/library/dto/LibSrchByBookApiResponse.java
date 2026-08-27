@@ -9,7 +9,11 @@ import java.util.List;
 public record LibSrchByBookApiResponse(@JsonProperty("response") Response response) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Response(@JsonProperty("libs") List<LibWrapper> libs) {
+    public record Response(
+        @JsonProperty("libs") List<LibWrapper> libs,
+        @JsonProperty("errCode") String errCode,
+        @JsonProperty("error") String error
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

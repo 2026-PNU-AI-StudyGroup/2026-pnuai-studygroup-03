@@ -11,6 +11,9 @@ public record ExploreResponse(
     int relevance,
     int discoveryValue,
     String reason,
-    List<String> keywords
+    List<String> keywords,
+    String libraryName,
+    String callNumber,
+    String shelfName
 ) {
 }

@@ -20,7 +20,7 @@ class LibrarianDashboardControllerTest {
         LibrarianDashboardService librarianDashboardService = mock(LibrarianDashboardService.class);
         LibrarianDashboardController controller = new LibrarianDashboardController(librarianDashboardService);
         LibrarianDashboardResponse dashboard = new LibrarianDashboardResponse(
-                128, 12, 0, List.of("청년", "불안", "관계"),
+                128, 12, List.of("청년", "불안", "관계"),
                 List.of(new CurationSummaryResponse(5L, "괜찮지 않아도 괜찮은 우리에게", 5, true))
         );
         when(librarianDashboardService.getDashboard("12")).thenReturn(dashboard);
