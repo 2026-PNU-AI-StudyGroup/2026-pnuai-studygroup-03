@@ -9,6 +9,7 @@ import com.wakebook.trend.repository.DailyTrendBatchRepository;
 import com.wakebook.trend.support.TrendProperties;
 import com.wakebook.user.domain.User;
 import com.wakebook.user.repository.UserRepository;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,9 +50,10 @@ public class TrendRefreshService {
         if (existing != null && existing.getStatus() == TrendBatchStatus.COMPLETED && !force)
             return new RefreshResult(TrendBatchResponse.from(existing), false);
         if (force && existing != null && existing.getCompletedAt() != null) enforceCooldown(existing);
-        DailyTrendBatch queued = stateService.createOrQueue(today, libraryCode);
-        worker.generate(queued.getId());
-        return new RefreshResult(TrendBatchResponse.from(queued), true);
+        TrendBatchStateService.QueueResult queued = stateService.createOrQueue(today, libraryCode);
+        if (!queued.created()) throw stateService.running(queued.batch());
+        startGeneration(queued.batch());
+        return new RefreshResult(TrendBatchResponse.from(queued.batch()), true);
     }
 
     @Transactional(readOnly = true)
@@ -64,16 +66,30 @@ public class TrendRefreshService {
         DailyTrendBatch existing = batchRepository.findByRecommendationDateAndLibraryCode(date, libraryCode).orElse(null);
         if (existing != null && existing.getStatus() == TrendBatchStatus.COMPLETED) return;
         if (existing != null && (existing.getStatus() == TrendBatchStatus.PENDING || existing.getStatus() == TrendBatchStatus.PROCESSING)) return;
-        DailyTrendBatch queued = stateService.createOrQueue(date, libraryCode);
-        worker.generate(queued.getId());
+        TrendBatchStateService.QueueResult queued = stateService.createOrQueue(date, libraryCode);
+        if (queued.created()) startGeneration(queued.batch());
     }
 
     /** 애플리케이션 재시작 전에 중단된 PENDING/PROCESSING 배치도 다시 실행한다. */
     public void requestOnStartup(String libraryCode, LocalDate date) {
         DailyTrendBatch existing = batchRepository.findByRecommendationDateAndLibraryCode(date, libraryCode).orElse(null);
         if (existing != null && existing.getStatus() == TrendBatchStatus.COMPLETED) return;
-        DailyTrendBatch queued = stateService.createOrQueue(date, libraryCode);
-        worker.generate(queued.getId());
+        TrendBatchStateService.QueueResult queued = stateService.createOrQueue(date, libraryCode);
+        if (queued.created()) startGeneration(queued.batch());
+    }
+
+    /**
+     * 비동기 큐(최대 12건 동시 처리·대기)가 가득 차면 TaskRejectedException이 여기서 즉시 던져진다.
+     * 배치는 이미 REQUIRES_NEW로 PENDING 저장됐으므로, 그대로 두면 이후 재요청이 "이미 생성 중"으로
+     * 오판해 영원히 막힌다. FAILED로 기록해 재시도할 수 있게 한다.
+     */
+    private void startGeneration(DailyTrendBatch batch) {
+        try {
+            worker.generate(batch.getId());
+        } catch (TaskRejectedException e) {
+            stateService.fail(batch.getId(), "TREND_006");
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "TREND_006", "작업이 많습니다. 잠시 후 다시 시도해 주세요.");
+        }
     }
 
     private void enforceCooldown(DailyTrendBatch batch) {
